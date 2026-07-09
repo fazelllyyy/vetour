@@ -3,6 +3,9 @@
  *  Licensed under the MIT License. See LICENSE file in the project root for license information.
  *-----------------------------------------------------------------------------------------------*/
 
+// Tiling feature is implemented but not yet connected to the frontend.
+#![allow(dead_code)]
+
 use image::codecs::jpeg::JpegEncoder;
 use image::imageops::FilterType;
 use image::{EncodableLayout, ImageEncoder};
