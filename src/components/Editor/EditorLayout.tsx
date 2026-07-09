@@ -11,7 +11,7 @@ import { PanoramaPage } from './PanoramaPage';
 import { AssetsView } from './AssetsView';
 import { useTourStore } from '@/store/useTourStore';
 import { useFileWatch } from '@/lib/useFileWatch';
-import { loadDeployModule } from '@/deploy/deployLoader';
+import { loadDeployModule } from '@/lib/deployLoader';
 import type { ComponentType } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/button';
