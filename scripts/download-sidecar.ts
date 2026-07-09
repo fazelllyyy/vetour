@@ -17,7 +17,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO = 'fazelllyyy/vetour';
-const VERSION = process.env.SIDECAR_VERSION || 'v1.0.0';
+const VERSION = process.env.SIDECAR_VERSION || 'ffmpeg-sidecar-v1';
 const SIDECAR_DIR = join(__dirname, '..', 'src-tauri', 'binaries');
 
 const platformMap = [

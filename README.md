@@ -65,15 +65,14 @@ The app will launch with hot-reload enabled. The Tauri window will open automati
 
 ### FFmpeg Sidecar
 
-Audio/video conversion requires the **ffmpeg** binary as a Tauri sidecar. During `bun install`, the `postinstall` hook automatically downloads the correct binary for your platform from the following sources:
+Audio/video conversion requires **ffmpeg** as a Tauri sidecar. During `bun install`, the `postinstall` hook automatically downloads the correct binary for your platform.
 
-| Platform         | Source                             |
-| ---------------- | ---------------------------------- |
-| Windows          | [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) |
-| macOS            | [evermeet.cx](https://evermeet.cx/ffmpeg/) |
-| Linux            | [johnvansickle.com](https://johnvansickle.com/ffmpeg/) |
+**Download priority:**
+1. [GitHub Release assets](https://github.com/fazelllyyy/vetour/releases) — direct binary, no extraction needed
+2. Canonical sources (gyan.dev, evermeet.cx, johnvansickle.com) — extracted automatically
+3. System `ffmpeg` in `PATH`
 
-> If the download fails, the script falls back to checking for a system-wide `ffmpeg` in your `PATH`. Audio/video conversion will work as long as ffmpeg is available.
+> First-time setup: Create a GitHub Release (`v1.0.0`) and upload the ffmpeg binaries as release assets. This enables the fastest download path for all users.
 
 ### Available Scripts
 
