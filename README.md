@@ -65,24 +65,15 @@ The app will launch with hot-reload enabled. The Tauri window will open automati
 
 ### FFmpeg Sidecar
 
-Audio/video conversion requires the **ffmpeg binary as a Tauri sidecar. During `bun install`, the `postinstall` hook automatically downloads the correct ffmpeg binary for your platform from the [GitHub Releases](https://github.com/fazelllyyy/vetour/releases) page.
+Audio/video conversion requires the **ffmpeg** binary as a Tauri sidecar. During `bun install`, the `postinstall` hook automatically downloads the correct binary for your platform from the following sources:
 
-> **Note**: If no sidecar binary is available for your platform yet, the script falls back to checking for a system-wide `ffmpeg` installation. Audio/video conversion will still work if ffmpeg is installed globally and available in your `PATH`.
+| Platform         | Source                             |
+| ---------------- | ---------------------------------- |
+| Windows          | [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) |
+| macOS            | [evermeet.cx](https://evermeet.cx/ffmpeg/) |
+| Linux            | [johnvansickle.com](https://johnvansickle.com/ffmpeg/) |
 
-Supported sidecar binaries:
-
-| Platform         | Binary Name                           |
-| ---------------- | ------------------------------------- |
-| Windows x64      | `ffmpeg-x86_64-pc-windows-msvc.exe`   |
-| macOS (Intel)    | `ffmpeg-x86_64-apple-darwin`           |
-| macOS (Apple Si) | `ffmpeg-aarch64-apple-darwin`         |
-| Linux x64        | `ffmpeg-x86_64-unknown-linux-gnu`     |
-| Linux ARM64      | `ffmpeg-aarch64-unknown-linux-gnu`    |
-
-> Where to get FFmpeg binaries:
-> - **Windows**: [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) — download the "release essentials" build, extract, and rename `ffmpeg.exe` to match the Windows binary name above.
-> - **macOS**: [evermeet.cx](https://evermeet.cx/ffmpeg/) or `brew install ffmpeg` and copy the binary.
-> - **Linux**: [johnvansickle.com](https://johnvansickle.com/ffmpeg/) or your distro's package manager.
+> If the download fails, the script falls back to checking for a system-wide `ffmpeg` in your `PATH`. Audio/video conversion will work as long as ffmpeg is available.
 
 ### Available Scripts
 
