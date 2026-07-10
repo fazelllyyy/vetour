@@ -24,8 +24,8 @@ const platformMap = [
   { key: 'win32-x64',   binary: 'ffmpeg-x86_64-pc-windows-msvc.exe', canonicalUrl: 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.7z', extractCmd: '7z', extractArgs: ['e', '-aoa', '-obb'] },
   { key: 'darwin-x64',  binary: 'ffmpeg-x86_64-apple-darwin',        canonicalUrl: 'https://evermeet.cx/ffmpeg/ffmpeg-7.1.7z',                       extractCmd: '7z', extractArgs: ['e', '-aoa', '-obb'] },
   { key: 'darwin-arm64',binary: 'ffmpeg-aarch64-apple-darwin',       canonicalUrl: 'https://evermeet.cx/ffmpeg/ffmpeg-7.1.7z',                       extractCmd: '7z', extractArgs: ['e', '-aoa', '-obb'] },
-  { key: 'linux-x64',   binary: 'ffmpeg-x86_64-unknown-linux-gnu',  canonicalUrl: 'https://johnvansickle.com/ffmpeg/release/ffmpeg-release-amd64-static.tar.xz', extractCmd: 'tar', extractArgs: ['xf', '-', '--strip-components=1', '*/ffmpeg', '-C'] },
-  { key: 'linux-arm64', binary: 'ffmpeg-aarch64-unknown-linux-gnu', canonicalUrl: 'https://johnvansickle.com/ffmpeg/release/ffmpeg-release-arm64-static.tar.xz', extractCmd: 'tar', extractArgs: ['xf', '-', '--strip-components=1', '*/ffmpeg', '-C'] },
+  { key: 'linux-x64',   binary: 'ffmpeg-x86_64-unknown-linux-gnu',  canonicalUrl: 'https://johnvansickle.com/ffmpeg/release/ffmpeg-release-amd64-static.tar.xz', extractCmd: 'tar', extractArgs: [] },
+  { key: 'linux-arm64', binary: 'ffmpeg-aarch64-unknown-linux-gnu', canonicalUrl: 'https://johnvansickle.com/ffmpeg/release/ffmpeg-release-arm64-static.tar.xz', extractCmd: 'tar', extractArgs: [] },
 ];
 
 async function download(url: string, dest: string): Promise<void> {
@@ -37,14 +37,13 @@ async function download(url: string, dest: string): Promise<void> {
 
 async function extract(archive: string, extractDir: string, entry: { extractCmd: string; extractArgs: string[] }): Promise<void> {
   const { spawnSync } = await import('child_process');
-  const args = [...entry.extractArgs];
   if (entry.extractCmd === 'tar') {
-    args[args.length - 1] = extractDir;
-    const result = spawnSync('tar', [args[0], archive, ...args.slice(1)], { stdio: 'pipe' });
+    const args = ['-xf', archive, '--strip-components=1', '--wildcards', '*/ffmpeg', '-C', extractDir];
+    const result = spawnSync('tar', args, { stdio: 'pipe' });
     if (result.status !== 0) throw new Error(`tar: ${result.stderr}`);
   } else {
-    args.push(`-o${extractDir}/`);
-    const result = spawnSync(entry.extractCmd, [...args, archive], { stdio: 'pipe' });
+    const args = [...entry.extractArgs, `-o${extractDir}/`, archive];
+    const result = spawnSync(entry.extractCmd, args, { stdio: 'pipe' });
     if (result.status !== 0) throw new Error(`${entry.extractCmd}: ${result.stderr}`);
   }
 }
@@ -82,7 +81,7 @@ async function main() {
 
   if (!entry) {
     console.log(`[sidecar] Unknown platform: ${key}`);
-    process.exit(0);
+    process.exit(1);
   }
 
   if (!existsSync(SIDECAR_DIR)) mkdirSync(SIDECAR_DIR, { recursive: true });
@@ -95,7 +94,7 @@ async function main() {
 
   // Try GitHub Release
   const releaseUrl = `https://github.com/${REPO}/releases/download/${VERSION}/${entry.binary}`;
-  console.log(`[sidecar] Downloading ${entry.binary}...`);
+  console.log(`[sidecar] Downloading ${entry.binary} from ${releaseUrl}...`);
   try {
     await download(releaseUrl, targetPath);
     if (process.platform !== 'win32') {
@@ -135,7 +134,8 @@ async function main() {
     process.exit(0);
   }
 
-  console.log(`[sidecar] No ffmpeg found. Audio/video conversion unavailable.`);
+  console.log(`[sidecar] No ffmpeg found. Tauri build will fail!`);
+  process.exit(1);
 }
 
 main();
