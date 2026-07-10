@@ -4,9 +4,8 @@ interface DeployModule {
 
 export async function loadDeployModule(): Promise<DeployModule | null> {
   try {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore — deploy module only available in private builds
-    const mod = await import(/* @vite-ignore */ '../deploy/index');
+    const modulePath = '../deploy/index';
+    const mod = await import(/* @vite-ignore */ modulePath);
     return mod as DeployModule;
   } catch {
     return null;
