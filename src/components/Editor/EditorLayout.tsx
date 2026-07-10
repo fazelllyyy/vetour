@@ -9,6 +9,7 @@ import { Tooltip } from '../ui/Tooltip';
 import { Toolbar } from './Toolbar';
 import { PanoramaPage } from './PanoramaPage';
 import { AssetsView } from './AssetsView';
+import { SkeletonEditor } from './SkeletonEditor';
 import { useTourStore } from '@/store/useTourStore';
 import { useFileWatch } from '@/lib/useFileWatch';
 import { loadDeployModule } from '@/lib/deployLoader';
@@ -20,6 +21,7 @@ import { save } from '@tauri-apps/plugin-dialog';
 import { saveVetourFile } from '@/lib/vetourFile';
 import { useProjectListStore } from '@/store/projectListStore';
 import { markSave } from '@/lib/useFileWatch';
+import { unlockProjectFile, lockProjectFile } from '@/lib/fileLock';
 import { DEFAULT_PROJECT_NAME, FILE_FILTER_NAME, FILE_FILTER_EXTENSIONS } from '@/constants';
 
 type EditorView = 'panorama' | 'assets';
@@ -33,7 +35,7 @@ export const EditorLayout = ({ onNavigateHome }: EditorLayoutProps) => {
   const unsavedChanges = useTourStore((state) => state.unsavedChanges);
   const savedPath = useTourStore((state) => state.savedPath);
   const setUnsavedChanges = useTourStore((state) => state.setUnsavedChanges);
-  const setProject = useTourStore((state) => state.setProject);
+  const updateProject = useTourStore((state) => state.updateProject);
   const setSavedPath = useTourStore((state) => state.setSavedPath);
 
   const [deployModalOpen, setDeployModalOpen] = useState(false);
@@ -70,9 +72,11 @@ export const EditorLayout = ({ onNavigateHome }: EditorLayoutProps) => {
     try {
       if (savedPath) {
         const updated = { ...project, updatedAt: new Date().toISOString() };
+        await unlockProjectFile();
         await saveVetourFile(savedPath, updated);
+        await lockProjectFile(savedPath);
         markSave();
-        setProject(updated);
+        updateProject(updated);
         setUnsavedChanges(false);
         const fileName = savedPath.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, '') || project.name;
         useProjectListStore.getState().addProject({
@@ -91,9 +95,11 @@ export const EditorLayout = ({ onNavigateHome }: EditorLayoutProps) => {
         const fileName = selected.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, '') || project.name;
         const name = project.name === DEFAULT_PROJECT_NAME ? fileName : project.name;
         const updated = { ...project, name, updatedAt: new Date().toISOString() };
+        await unlockProjectFile();
         await saveVetourFile(selected, updated);
+        await lockProjectFile(selected);
         markSave();
-        setProject(updated);
+        updateProject(updated);
         setSavedPath(selected);
         setUnsavedChanges(false);
         useProjectListStore.getState().addProject({
@@ -117,8 +123,17 @@ export const EditorLayout = ({ onNavigateHome }: EditorLayoutProps) => {
     { id: 'assets' as const, label: 'Assets', icon: <FolderArchive className="w-5 h-5" /> },
   ];
 
+  const projectLoading = useTourStore((s) => s.projectLoading);
+  const viewerLoading = useTourStore((s) => s.viewerLoading);
+
   return (
-    <div className="flex flex-col h-full w-full bg-background text-text-primary overflow-hidden">
+    <div className="relative flex flex-col h-full w-full bg-background text-text-primary overflow-hidden">
+      {(projectLoading || viewerLoading) && (
+        <div className="absolute inset-0 z-[100] bg-background">
+          <SkeletonEditor />
+        </div>
+      )}
+      
       <Toolbar onOpenDeploy={DeployModal ? () => setDeployModalOpen(true) : undefined} onNavigateHome={handleNavigateHome} />
 
       {fileWarning && (

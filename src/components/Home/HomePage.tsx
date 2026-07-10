@@ -120,6 +120,7 @@ export const HomePage = ({ onNavigateToEditor, onReady }: HomePageProps) => {
       });
       if (!selected) return;
       const path = typeof selected === 'string' ? selected : selected;
+      useTourStore.getState().setProjectLoading(true);
       let data: TourProject;
       try {
         data = await loadVetourFile(path);
@@ -138,6 +139,7 @@ export const HomePage = ({ onNavigateToEditor, onReady }: HomePageProps) => {
       const project: TourProject = { ...data, name };
       loadProject(project);
       useTourStore.getState().setSavedPath(path);
+      onNavigateToEditor(path);
       addProject({
         id: project.id,
         name,
@@ -146,7 +148,6 @@ export const HomePage = ({ onNavigateToEditor, onReady }: HomePageProps) => {
         lastOpenedAt: new Date().toISOString(),
       });
       await lockProjectFile(path);
-      onNavigateToEditor(path);
     } catch (e) {
       console.error('Error opening virtual tour', e);
       useToastStore.getState().addToast({ type: 'danger', message: 'Failed to open project.' });
@@ -164,6 +165,7 @@ export const HomePage = ({ onNavigateToEditor, onReady }: HomePageProps) => {
         return;
       }
 
+      useTourStore.getState().setProjectLoading(true);
       let data: TourProject;
       try {
         data = await loadVetourFile(entry.folderPath);

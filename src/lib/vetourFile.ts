@@ -6,7 +6,6 @@
 import { writeFile, readFile } from '@tauri-apps/plugin-fs';
 import { gzip, ungzip } from 'pako';
 import type { TourProject } from '../types/tour';
-import { getMime } from '@/constants';
 
 const V1_MAGIC = new Uint8Array([0x56, 0x54, 0x00, 0x01]);
 const V2_MAGIC = new Uint8Array([0x56, 0x54, 0x00, 0x02]);
@@ -56,26 +55,7 @@ function collectPaths(project: TourProject): string[] {
   return [...s];
 }
 
-function remapPaths(project: TourProject, map: Map<string, string>): TourProject {
-  const r = JSON.parse(JSON.stringify(project)) as TourProject;
-  const m = (p: string) => map.get(p) ?? p;
-  for (const sc of r.scenes) {
-    if (sc.panorama) sc.panorama = m(sc.panorama);
-    if (sc.thumbnail) sc.thumbnail = m(sc.thumbnail);
-    for (const mk of sc.markers) {
-      if (mk.image) mk.image = m(mk.image);
-      if (mk.data) {
-        const d = mk.data as Record<string, unknown>;
-        if (typeof d.audio === 'string') d.audio = m(d.audio);
-        if (typeof d.video === 'string') d.video = m(d.video);
-      }
-    }
-  }
-  for (const a of r.assets) {
-    if (a.path) a.path = m(a.path);
-  }
-  return r;
-}
+
 
 function decompressJson(data: Uint8Array): TourProject {
   let d: Uint8Array;
@@ -100,8 +80,8 @@ function decompressJson(data: Uint8Array): TourProject {
 // ── blob URL cache ──────────────────────────────────────────────────
 // Maps original path → blob URL; tracks all objects created from .vetour
 // so they can be revoked on project close / next load.
-const blobUrlCache = new Map<string, string>();
-const blobDataCache = new Map<string, Uint8Array>(); // blob URL → raw bytes (for save)
+export const blobUrlCache = new Map<string, string>();
+export const blobDataCache = new Map<string, Uint8Array>(); // blob URL → raw bytes (for save)
 
 export function revokeVetourBlobs(): void {
   for (const url of blobUrlCache.values()) {
@@ -127,24 +107,18 @@ async function _saveVetourFile(
 
   for (const p of assetPaths) {
     try {
+      if (blobUrlCache.has(p)) {
+        const blobUrl = blobUrlCache.get(p)!;
+        const data = blobDataCache.get(blobUrl);
+        if (data) {
+          files.push({ p, bin: data });
+          continue;
+        }
+      }
       const bin = await diskRead(p);
       files.push({ p, bin });
     } catch {
       // skip unreadable files
-    }
-  }
-
-  // Also embed blob-referenced assets from the in-memory cache
-  for (const sc of project.scenes) {
-    if (sc.panorama?.startsWith('blob:')) {
-      const data = blobDataCache.get(sc.panorama);
-      if (data) files.push({ p: sc.panorama, bin: data });
-    }
-  }
-  for (const a of project.assets) {
-    if (a.path?.startsWith('blob:') && !files.some(f => f.p === a.path)) {
-      const data = blobDataCache.get(a.path);
-      if (data) files.push({ p: a.path, bin: data });
     }
   }
 
@@ -202,14 +176,21 @@ export async function loadVetourFile(filePath: string): Promise<TourProject> {
       const fdata = raw.slice(off, off + dlen);
       off += dlen;
 
-      // Create blob URL instead of writing to disk
-      const mime = getMime(origPath);
-      const blob = new Blob([fdata], { type: mime });
-      const blobUrl = URL.createObjectURL(blob);
+      const safeName = origPath.replace(/[/\\]/g, '_');
+      const { join, tempDir } = await import('@tauri-apps/api/path');
+      const { mkdir, writeFile } = await import('@tauri-apps/plugin-fs');
+      const { convertFileSrc } = await import('@tauri-apps/api/core');
+      
+      const tDir = await tempDir();
+      const sessionDir = await join(tDir, 'vetour_session');
+      await mkdir(sessionDir, { recursive: true });
+      const tempPath = await join(sessionDir, safeName);
+      await writeFile(tempPath, fdata);
+      const assetUrl = convertFileSrc(tempPath);
 
-      blobUrlCache.set(origPath, blobUrl);
-      blobDataCache.set(blobUrl, fdata);
-      pathMap.set(origPath, blobUrl);
+      blobUrlCache.set(origPath, assetUrl);
+      blobDataCache.set(assetUrl, fdata);
+      pathMap.set(origPath, assetUrl);
     }
 
     if (off + 4 > raw.length) throw new Error('File corrupted: missing JSON section length.');
@@ -218,7 +199,7 @@ export async function loadVetourFile(filePath: string): Promise<TourProject> {
     if (off + jlen > raw.length) throw new Error('File corrupted: JSON section truncated.');
 
     const project = decompressJson(raw.slice(off, off + jlen));
-    return remapPaths(project, pathMap);
+    return project;
   }
 
   throw new Error('This is not a valid Vetour project file.');

@@ -9,6 +9,8 @@ import { generateHotspotId } from '@/constants';
 
 interface TourState {
   project: TourProject | null;
+  projectLoading: boolean;
+  viewerLoading: boolean;
   activeSceneId: string | null;
   selectedHotspotId: string | null;
   hotspotMode: 'info' | 'nav' | null;
@@ -18,6 +20,8 @@ interface TourState {
   
   // Actions
   setProject: (project: TourProject) => void;
+  setProjectLoading: (loading: boolean) => void;
+  setViewerLoading: (loading: boolean) => void;
   updateProject: (project: TourProject) => void;
   loadProject: (project: TourProject) => void;
   setSavedPath: (path: string | null) => void;
@@ -49,6 +53,8 @@ interface TourState {
 
 export const useTourStore = create<TourState>((set) => ({
   project: null,
+  projectLoading: false,
+  viewerLoading: false,
   activeSceneId: null,
   selectedHotspotId: null,
   hotspotMode: null,
@@ -56,13 +62,15 @@ export const useTourStore = create<TourState>((set) => ({
   isPresentMode: false,
   savedPath: null,
 
+  setProjectLoading: (loading) => set({ projectLoading: loading }),
+  setViewerLoading: (loading) => set({ viewerLoading: loading }),
   setProject: (project) => {
     project.scenes.forEach(s => {
       s.markers.forEach(m => {
         if (!m.id) m.id = generateHotspotId();
       });
     });
-    set({ project, activeSceneId: project.defaultSceneId || (project.scenes.length > 0 ? project.scenes[0].id : null) });
+    set({ project, activeSceneId: project.defaultSceneId || (project.scenes.length > 0 ? project.scenes[0].id : null), projectLoading: false, viewerLoading: project.scenes.length > 0 });
   },
   loadProject: (project) => {
     project.scenes.forEach(s => {
@@ -70,7 +78,7 @@ export const useTourStore = create<TourState>((set) => ({
         if (!m.id) m.id = generateHotspotId();
       });
     });
-    set({ project, activeSceneId: project.defaultSceneId || (project.scenes.length > 0 ? project.scenes[0].id : null), unsavedChanges: false });
+    set({ project, activeSceneId: project.defaultSceneId || (project.scenes.length > 0 ? project.scenes[0].id : null), unsavedChanges: false, projectLoading: false, viewerLoading: project.scenes.length > 0 });
   },
   updateProject: (project) => {
     project.scenes.forEach(s => {
@@ -78,7 +86,7 @@ export const useTourStore = create<TourState>((set) => ({
         if (!m.id) m.id = generateHotspotId();
       });
     });
-    set({ project });
+    set({ project, projectLoading: false });
   },
   setSavedPath: (savedPath) => set({ savedPath }),
   setActiveScene: (sceneId) => set({ activeSceneId: sceneId, selectedHotspotId: null, hotspotMode: null }),
@@ -95,7 +103,7 @@ export const useTourStore = create<TourState>((set) => ({
         scenes: [...state.project.scenes, scene],
       },
       unsavedChanges: true,
-      activeSceneId: state.activeSceneId || scene.id
+      activeSceneId: scene.id
     };
   }),
 
@@ -255,6 +263,7 @@ export const useTourStore = create<TourState>((set) => ({
         ...state.project,
         assets: state.project.assets.map((a) => a.id === id ? { ...a, ...updates } : a),
       },
+      unsavedChanges: true,
     };
   }),
 }));

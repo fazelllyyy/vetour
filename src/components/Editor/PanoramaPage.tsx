@@ -127,15 +127,15 @@ export const PanoramaPage = () => {
 
   const handleConfirmHotspot = useCallback(() => {
     if (!hotspotConfirmPos || !activeSceneId) return;
+    const newId = generateHotspotId();
     addInfoHotspot(activeSceneId, {
-      id: generateHotspotId(),
+      id: newId,
       position: hotspotConfirmPos.pos,
       tooltip: 'New Hotspot',
-      content: 'New Info Hotspot',
-      html: '<div style="background:#fff;padding:6px 10px;border-radius:6px;color:#000;font-weight:bold;cursor:pointer;font-size:14px;">i</div>',
-      data: { action: 'show_text', textAlign: 'center' },
+      data: { action: 'navigate' },
     });
     setHotspotConfirmPos(null);
+    useTourStore.getState().setSelectedHotspot(newId);
   }, [hotspotConfirmPos, activeSceneId, addInfoHotspot]);
 
   const sceneName = deleteTarget
@@ -167,11 +167,11 @@ export const PanoramaPage = () => {
       {/* Left: Preview + Cards */}
       <div className="flex flex-col flex-1 overflow-hidden">
         {/* Center: Preview Area */}
-        <div ref={sceneRef} className="flex-1 relative bg-black overflow-hidden min-h-0">
+        <div ref={sceneRef} className="flex-1 relative bg-background overflow-hidden min-h-0">
           {!activeSceneId ? (
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-white/50 text-center">
-                <p className="text-lg">No Scene Selected</p>
+              <div className="text-text-secondary text-center">
+                <p className="text-lg font-medium text-text-primary">No Scene Selected</p>
                 <p className="text-sm">Select or import a panorama below</p>
               </div>
             </div>
@@ -217,7 +217,7 @@ export const PanoramaPage = () => {
 
           {previewHotspot && (
             <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40" onClick={() => setPreviewHotspot(null)}>
-              <div className="bg-surface border border-border rounded-lg shadow-2xl flex flex-col" style={{ maxHeight: modalMaxH, width: 'auto', maxWidth: '90vw' }} onClick={(e) => e.stopPropagation()}>
+              <div className="bg-surface border border-border rounded-lg shadow-2xl flex flex-col" style={{ maxHeight: modalMaxH, width: 'fit-content', minWidth: '300px', maxWidth: '70vw' }} onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0">
                   <h3 className="font-semibold text-lg truncate text-text-primary">
                     {typeof previewHotspot.marker.tooltip === 'string' ? previewHotspot.marker.tooltip : previewHotspot.marker.tooltip?.content || 'Preview'}
@@ -246,7 +246,7 @@ export const PanoramaPage = () => {
                       }
                       if (action === 'show_text' && marker.content) {
                         return (
-                          <div style={{ maxWidth: '600px' }}>
+                          <div style={{ maxWidth: '600px', width: '100%' }}>
                             <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ textAlign: (data.textAlign as React.CSSProperties['textAlign']) || 'center' }}>{marker.content}</p>
                           </div>
                         );

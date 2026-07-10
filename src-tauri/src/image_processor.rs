@@ -88,52 +88,45 @@ pub async fn process_panorama(
             Err(e) => return Err(format!("Failed to open image: {}", e)),
         };
 
-        let resolutions = vec![
-            ("low", 1024),
-            ("medium", 2048),
-            ("high", 4096),
-        ];
+        emit_progress("Resizing to 4096px...", 40);
 
-        let mut output_paths = Vec::new();
-        let total_steps = resolutions.len() as u8;
+        let target_width = 4096u32;
+        let aspect_ratio = img.height() as f32 / img.width() as f32;
+        let target_height = (target_width as f32 * aspect_ratio) as u32;
 
-        for (i, (label, target_width)) in resolutions.iter().enumerate() {
-            emit_progress(&format!("Processing {} resolution...", label), 20 + (i as u8 * (80 / total_steps)));
-            
-            let aspect_ratio = img.height() as f32 / img.width() as f32;
-            let target_height = (*target_width as f32 * aspect_ratio) as u32;
+        let resized = if img.width() > target_width {
+            img.resize_exact(target_width, target_height, FilterType::CatmullRom)
+        } else {
+            img.clone()
+        };
 
-            let resized = if img.width() > *target_width {
-                img.resize_exact(*target_width, target_height, FilterType::Lanczos3)
-            } else {
-                img.clone()
-            };
+        emit_progress("Encoding WebP...", 70);
 
-            let out_filename = format!("{}_{}.webp", scene_id_clone, label);
-            let out_path = Path::new(&output_dir).join(&out_filename);
+        let out_filename = format!("{}_high.webp", scene_id_clone);
+        let out_path = Path::new(&output_dir).join(&out_filename);
 
-            if let Some(parent) = out_path.parent() {
-                let _ = std::fs::create_dir_all(parent);
-            }
-
-            let mut file = match File::create(&out_path) {
-                Ok(f) => f,
-                Err(e) => return Err(format!("Failed to create output file: {}", e)),
-            };
-
-            let encoded = webp::Encoder::from_image(&resized)
-                .map_err(|e| format!("Failed to create WebP encoder: {}", e))?
-                .encode(90f32);
-            file.write_all(&encoded)
-                .map_err(|e| format!("Failed to write WebP: {}", e))?;
-
-            output_paths.push(ResolutionPath {
-                label: label.to_string(),
-                path: out_path.to_string_lossy().to_string(),
-            });
+        if let Some(parent) = out_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
         }
 
+        let mut file = match File::create(&out_path) {
+            Ok(f) => f,
+            Err(e) => return Err(format!("Failed to create output file: {}", e)),
+        };
+
+        let encoded = webp::Encoder::from_image(&resized)
+            .map_err(|e| format!("Failed to create WebP encoder: {}", e))?
+            .encode(80f32);
+        file.write_all(&encoded)
+            .map_err(|e| format!("Failed to write WebP: {}", e))?;
+
         emit_progress("Complete", 100);
+
+        let mut output_paths = Vec::new();
+        output_paths.push(ResolutionPath {
+            label: "high".to_string(),
+            path: out_path.to_string_lossy().to_string(),
+        });
 
         Ok(output_paths)
     })

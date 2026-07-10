@@ -25,7 +25,7 @@ interface ToolbarProps {
 
 export const Toolbar = ({ onOpenDeploy, onNavigateHome }: ToolbarProps) => {
   const project = useTourStore((state) => state.project);
-  const setProject = useTourStore((state) => state.setProject);
+  const updateProject = useTourStore((state) => state.updateProject);
   const loadProject = useTourStore((state) => state.loadProject);
   const unsavedChanges = useTourStore((state) => state.unsavedChanges);
   const setUnsavedChanges = useTourStore((state) => state.setUnsavedChanges);
@@ -83,7 +83,7 @@ export const Toolbar = ({ onOpenDeploy, onNavigateHome }: ToolbarProps) => {
     await unlockProjectFile();
     await saveVetourFile(targetPath, updatedProject);
     await lockProjectFile(targetPath);
-    setProject(updatedProject);
+    updateProject(updatedProject);
     setUnsavedChanges(false);
     setSavedPath(targetPath);
     useProjectListStore.getState().addProject({

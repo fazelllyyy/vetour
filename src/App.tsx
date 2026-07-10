@@ -126,7 +126,7 @@ function App() {
         await unlockProjectFile();
         await saveVetourFile(state.savedPath, updated);
         await lockProjectFile(state.savedPath);
-        useTourStore.getState().setProject(updated);
+        useTourStore.getState().updateProject(updated);
         useTourStore.getState().setUnsavedChanges(false);
         const addProject = useProjectListStore.getState().addProject;
         const fileName = state.savedPath.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, '') || project.name;
@@ -150,7 +150,7 @@ function App() {
         await unlockProjectFile();
         await saveVetourFile(selected, updated);
         await lockProjectFile(selected);
-        useTourStore.getState().setProject(updated);
+        useTourStore.getState().updateProject(updated);
         useTourStore.getState().setSavedPath(selected);
         useTourStore.getState().setUnsavedChanges(false);
         const addProject = useProjectListStore.getState().addProject;

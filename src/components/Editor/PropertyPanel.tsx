@@ -7,10 +7,11 @@ import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { useTourStore } from '@/store/useTourStore';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
+import { ConfirmModal } from '@/components/ui/Modal';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/Select';
-import { Trash2, Save } from 'lucide-react';
+import { Trash2, Save, MapPin, Info } from 'lucide-react';
 import { TourScene, NavigationHotspot } from '@/types/tour';
 import { HOTSPOT_ACTION_OPTIONS, TEXT_ALIGN_OPTIONS } from '@/constants';
 
@@ -64,6 +65,9 @@ export const PropertyPanel = () => {
             scene={activeScene}
             onUpdate={updateScene}
             onDelete={deleteScene}
+            onHotspotClick={(_markerId, internalId) => {
+              setSelectedHotspot(internalId);
+            }}
           />
         )}
 
@@ -104,10 +108,12 @@ function ScenePropertiesForm({
   scene,
   onUpdate,
   onDelete,
+  onHotspotClick,
 }: {
   scene: TourScene;
   onUpdate: (id: string, updates: Partial<TourScene>) => void;
   onDelete: (id: string) => void;
+  onHotspotClick: (markerId: string, internalId: string) => void;
 }) {
   const [localName, setLocalName] = useState(scene.name || '');
   const [localCaption, setLocalCaption] = useState(scene.caption || '');
@@ -176,6 +182,29 @@ function ScenePropertiesForm({
           </Button>
         </div>
       </div>
+
+      {(scene.markers.length > 0 || scene.links.length > 0) && (
+        <div className="mt-8">
+          <h3 className="text-sm font-semibold border-b border-border pb-2 text-text-primary mb-3">Hotspots</h3>
+          <div className="space-y-2">
+            {scene.links.map(link => (
+              <Button key={`nav_${link.nodeId}`} variant="outline" size="sm" className="w-full justify-start text-xs font-normal h-8" onClick={() => onHotspotClick(`nav_${link.nodeId}`, link.nodeId)}>
+                <MapPin className="w-3 h-3 mr-2 text-primary" />
+                {link.name || 'Navigate'}
+              </Button>
+            ))}
+            {scene.markers.map(marker => {
+              const name = typeof marker.tooltip === 'string' ? marker.tooltip : marker.tooltip?.content || 'Hotspot';
+              return (
+                <Button key={marker.id} variant="outline" size="sm" className="w-full justify-start text-xs font-normal h-8" onClick={() => onHotspotClick(marker.id, marker.id)}>
+                  <Info className="w-3 h-3 mr-2 text-blue-500" />
+                  {name}
+                </Button>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -195,6 +224,7 @@ function NavHotspotForm({
   updateNavHotspot: (sceneId: string, hotspotId: string, updates: Record<string, unknown>) => void;
   deleteNavHotspot: (sceneId: string, hotspotId: string) => void;
 }) {
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [localName, setLocalName] = useState(marker.name || '');
   const [localNodeId, setLocalNodeId] = useState(marker.nodeId || '');
   const originalRef = useRef({ name: marker.name || '', nodeId: marker.nodeId || '' });
@@ -236,7 +266,7 @@ function NavHotspotForm({
           />
         </div>
         <div className="pt-4 border-t border-border flex gap-2">
-          <Button variant="danger" size="sm" className="flex-1" onClick={() => deleteNavHotspot(sceneId, hotspotId)}>
+          <Button variant="danger" size="sm" className="flex-1" onClick={() => setDeleteTarget(hotspotId)}>
             <Trash2 className="w-4 h-4 mr-2" /> Delete
           </Button>
           <Button size="sm" className="flex-1" onClick={handleSave} disabled={!hasChanges}>
@@ -244,6 +274,22 @@ function NavHotspotForm({
           </Button>
         </div>
       </div>
+      
+      <ConfirmModal
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title="Delete Hotspot"
+        description="Are you sure you want to delete this hotspot? This action cannot be undone."
+        confirmLabel="Delete"
+        isDanger
+        onConfirm={() => {
+          if (deleteTarget) {
+            deleteNavHotspot(sceneId, deleteTarget);
+          }
+          setDeleteTarget(null);
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }
@@ -277,6 +323,7 @@ function InfoHotspotForm({
   setSelectedHotspot: (id: string | null) => void;
   scenes: { id: string; name?: string }[];
 }) {
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const currentData = data || {};
   const origTooltip = typeof marker.tooltip === 'string' ? marker.tooltip : marker.tooltip?.content || '';
   const origImage = marker.image || '';
@@ -424,12 +471,16 @@ function InfoHotspotForm({
               options={[...TEXT_ALIGN_OPTIONS]}
             />
             <Label className="mt-3 block">Display Text</Label>
-            <textarea
-              value={localContent}
-              onChange={(e) => setLocalContent(e.target.value)}
-              className="w-full px-3 py-2 border border-border rounded-lg bg-background text-text-primary min-h-[80px] mt-1"
-              placeholder="Enter text to display..."
-            />
+            <div className="w-full mt-1 bg-background border border-input rounded-md px-3 py-2 transition-[color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 overflow-hidden">
+              <textarea
+                value={localContent}
+                wrap="off"
+                rows={10}
+                onChange={(e) => setLocalContent(e.target.value)}
+                className="w-full bg-transparent text-text-primary resize-none outline-none whitespace-pre custom-scroll overscroll-none block"
+                placeholder="Enter text to display..."
+              />
+            </div>
           </div>
         )}
 
@@ -464,7 +515,7 @@ function InfoHotspotForm({
         )}
 
         <div className="pt-4 border-t border-border flex gap-2">
-          <Button variant="danger" size="sm" className="flex-1" onClick={() => deleteInfoHotspot(sceneId, hotspotId)}>
+          <Button variant="danger" size="sm" className="flex-1" onClick={() => setDeleteTarget(hotspotId)}>
             <Trash2 className="w-4 h-4 mr-2" /> Delete
           </Button>
           <Button size="sm" className="flex-1" onClick={handleSave} disabled={!hasChanges}>
@@ -472,6 +523,22 @@ function InfoHotspotForm({
           </Button>
         </div>
       </div>
+      
+      <ConfirmModal
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title="Delete Hotspot"
+        description="Are you sure you want to delete this hotspot? This action cannot be undone."
+        confirmLabel="Delete"
+        isDanger
+        onConfirm={() => {
+          if (deleteTarget) {
+            deleteInfoHotspot(sceneId, deleteTarget);
+          }
+          setDeleteTarget(null);
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

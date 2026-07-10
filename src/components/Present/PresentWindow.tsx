@@ -49,8 +49,22 @@ export const PresentWindow = () => {
         const raw = await invoke<string | null>('get_present_data');
         if (cancelled) return;
         if (raw) {
-          const data = JSON.parse(raw);
-          if (data) {
+          const parsed = JSON.parse(raw);
+          if (parsed) {
+            const data = parsed.project || parsed; // backward compatibility
+            const assetMap = parsed.assetMap || {};
+            
+            if (Object.keys(assetMap).length > 0) {
+              try {
+                const { blobUrlCache } = await import('@/lib/vetourFile');
+                for (const [k, v] of Object.entries(assetMap)) {
+                  blobUrlCache.set(k, v as string);
+                }
+              } catch (e) {
+                console.error('[PresentWindow] Failed to load blobUrlCache module', e);
+              }
+            }
+
             setProject(data);
             const startSceneId = data.defaultSceneId || (data.scenes?.length > 0 ? data.scenes[0].id : null);
             if (startSceneId) setActiveScene(startSceneId);
@@ -245,17 +259,17 @@ export const PresentWindow = () => {
 
   if (loading) {
     return (
-      <div className="w-full h-full flex-1 bg-black flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3 text-white/60">
-          <Loader2 className="w-8 h-8 animate-spin" />
-          <p className="text-sm">Loading tour data...</p>
+      <div className="w-full h-full flex-1 bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3 text-text-primary">
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          <p className="text-sm font-medium">Loading tour data...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-full flex-1 bg-black overflow-hidden relative">
+    <div className="w-full h-full flex-1 bg-background overflow-hidden relative">
       <PSVViewer onPresentMarkerClick={handleMarkerClick} />
 
       {modalState.type === 'image' && modalState.imageSrc && (
@@ -303,24 +317,26 @@ export const PresentWindow = () => {
       {modalState.type === 'text' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
           onClick={closeModal}>
-          <div className="w-[50vw] max-w-2xl max-h-[50vh] rounded-lg border border-border bg-surface text-text-primary overflow-hidden"
+          <div className="w-fit min-w-[300px] max-w-[70vw] max-h-[70vh] rounded-lg border border-border bg-surface text-text-primary overflow-hidden flex flex-col shadow-2xl"
             onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-3 border-b border-border">
-              <h3 className="font-semibold text-lg truncate">{modalState.title}</h3>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0">
+              <h3 className="font-semibold text-lg truncate mr-4">{modalState.title}</h3>
               <button
                 onClick={closeModal}
-                className="text-text-secondary hover:text-text-primary transition-colors"
+                className="text-text-secondary hover:text-text-primary transition-colors p-1"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <ScrollArea className="max-h-[calc(50vh-57px)] p-5">
-              <p 
-                className="text-sm leading-relaxed whitespace-pre-wrap"
-                style={{ textAlign: modalState.textAlign || 'center' }}
-              >
-                {modalState.textContent}
-              </p>
+            <ScrollArea className="flex-1 min-h-0">
+              <div className="p-5">
+                <p 
+                  className="text-sm leading-relaxed whitespace-pre-wrap"
+                  style={{ textAlign: modalState.textAlign || 'center' }}
+                >
+                  {modalState.textContent}
+                </p>
+              </div>
             </ScrollArea>
           </div>
         </div>

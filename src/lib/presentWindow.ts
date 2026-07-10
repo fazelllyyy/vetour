@@ -19,8 +19,14 @@ export async function openPresentWindow(project: TourProject | null) {
 
   const label = 'present-' + Date.now();
 
+  const { blobUrlCache } = await import('./vetourFile');
+  const presentData = {
+    project,
+    assetMap: Object.fromEntries(blobUrlCache.entries())
+  };
+
   // Store project data in Rust global state (accessible from any webview)
-  await invoke('store_present_data', { data: JSON.stringify(project) });
+  await invoke('store_present_data', { data: JSON.stringify(presentData) });
 
   const w = new WebviewWindow(label, {
     url: '/?mode=present',
@@ -48,11 +54,12 @@ export async function openPresentWindow(project: TourProject | null) {
   import('@tauri-apps/api/event').then(({ listen }) => {
     listen('present-closed', () => {
       useTourStore.getState().setPresentMode(false);
+      w.close().catch(() => {});
     });
   });
 
   w.once('tauri://error', (e) => {
-    console.error('Window error', e);
+    console.error('Present window error:', e);
     useToastStore.getState().addToast({ type: 'danger', message: 'Failed to open present window.' });
     useTourStore.getState().setPresentMode(false);
   });

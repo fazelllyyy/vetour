@@ -72,4 +72,8 @@ export interface TourProject {
   compass?: boolean;
   map?: unknown;
   plan?: unknown;
+  deployInfo?: {
+    slug: string;
+    lastDeployedAt: string;
+  };
 }

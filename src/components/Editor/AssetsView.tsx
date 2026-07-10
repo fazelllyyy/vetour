@@ -3,7 +3,7 @@
  *  Licensed under the MIT License. See LICENSE file in the project root for license information.
  *-----------------------------------------------------------------------------------------------*/
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useTourStore } from '@/store/useTourStore';
 import { AssetEntry, AssetType } from '@/types/tour';
 import { GridCard } from '../ui/GridCard';
@@ -13,6 +13,7 @@ import { ContextMenu } from '../ui/ContextMenu';
 import { Upload, Image, Music, Video, FileText, Eye, Pencil, Trash2 } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
+import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { stat } from '@tauri-apps/plugin-fs';
 import { appDataDir } from '@tauri-apps/api/path';
 import { getAssetUrl } from '@/lib/panorama';
@@ -70,15 +71,32 @@ export const AssetsView = () => {
   const addAsset = useTourStore((s) => s.addAsset);
   const removeAsset = useTourStore((s) => s.removeAsset);
   const renameAsset = useTourStore((s) => s.renameAsset);
-  const updateAsset = useTourStore((s) => s.updateAsset);
   const deleteScene = useTourStore((s) => s.deleteScene);
-  const assets = project?.assets ?? [];
+  const assets = useMemo(() => project?.assets ?? [], [project?.assets]);
   const [uploading, setUploading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<AssetEntry | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ asset: AssetEntry; rect: DOMRect } | null>(null);
   const [viewTarget, setViewTarget] = useState<AssetEntry | null>(null);
   const [renameTarget, setRenameTarget] = useState<AssetEntry | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [uploadState, setUploadState] = useState<{
+    isOpen: boolean;
+    currentName: string;
+    currentIndex: number;
+    total: number;
+    status: string;
+    progress: number;
+  } | null>(null);
+  const [limitErrorModal, setLimitErrorModal] = useState<{ isOpen: boolean; message: string; details?: string[] }>({ isOpen: false, message: '' });
+
+  useEffect(() => {
+    if (viewTarget) {
+      const updated = assets.find((a) => a.id === viewTarget.id);
+      if (updated && (updated.name !== viewTarget.name || updated.path !== viewTarget.path || updated.size !== viewTarget.size)) {
+        setViewTarget(updated);
+      }
+    }
+  }, [assets, viewTarget]);
 
   const linkedScenes = useMemo(() => {
     if (!deleteTarget || !project) return [];
@@ -98,64 +116,134 @@ export const AssetsView = () => {
       if (selected && selected.length > 0) {
         const paths = Array.isArray(selected) ? selected : [selected];
         
-        paths.forEach(async (path) => {
-          if (typeof path !== 'string') return;
+        const validPaths: { path: string, size: number, name: string }[] = [];
+        const skippedFiles: string[] = [];
 
+        for (let i = 0; i < paths.length; i++) {
+          const path = paths[i];
+          if (typeof path !== 'string') continue;
+          
+          const name = path.split(/[/\\]/).pop() || 'file';
           let size = 0;
           try {
             const meta = await stat(path);
             size = meta.size;
           } catch { /* fallback to 0 */ }
 
-          const name = path.split(/[/\\]/).pop() || 'file';
-
           if (size > MAX_UPLOAD_SIZE) {
-            useToastStore.getState().addToast({ type: 'warning', message: `"${name}" exceeds the ${MAX_UPLOAD_SIZE_MB} MB limit and was skipped.` });
-            return;
+            skippedFiles.push(name);
+          } else {
+            validPaths.push({ path, size, name });
           }
+        }
 
-          const id = generateAssetId();
-          addAsset({
-            id,
-            name,
-            path,
-            type,
-            size,
-            addedAt: new Date().toISOString(),
+        if (validPaths.length === 0) {
+          setLimitErrorModal({
+            isOpen: true,
+            message: paths.length === 1 
+              ? `File "${skippedFiles[0]}" exceeds the maximum size limit of ${MAX_UPLOAD_SIZE_MB} MB.`
+              : `All selected files exceed the maximum size limit of ${MAX_UPLOAD_SIZE_MB} MB.`,
+            details: paths.length === 1 ? undefined : skippedFiles
+          });
+          return;
+        }
+
+        if (skippedFiles.length > 0) {
+          useToastStore.getState().addToast({ type: 'warning', message: `${skippedFiles.length} file(s) skipped for exceeding the ${MAX_UPLOAD_SIZE_MB} MB limit.` });
+        }
+        
+        setUploadState({
+          isOpen: true,
+          currentName: validPaths[0].name,
+          currentIndex: 1,
+          total: validPaths.length,
+          status: 'Initializing...',
+          progress: 0,
+        });
+
+        let unlisten: UnlistenFn | null = null;
+        try {
+          unlisten = await listen('process_progress', (event: { payload: { status: string; progress: number } }) => {
+            const payload = event.payload;
+            setUploadState(prev => prev ? { ...prev, status: payload.status, progress: payload.progress } : prev);
           });
 
-          try {
-            const appDir = await appDataDir();
-            let outputPath: string | null = null;
+          for (let i = 0; i < validPaths.length; i++) {
+            const { path, size, name } = validPaths[i];
+            
+            setUploadState(prev => prev ? {
+              ...prev,
+              currentName: name,
+              currentIndex: i + 1,
+              status: 'Processing...',
+              progress: 0,
+            } : prev);
 
-            if (type === 'image') {
-              const outputDir = appDir.endsWith('/') || appDir.endsWith('\\') ? appDir + 'panoramas' : appDir + '/panoramas';
-              const resolutions = await invoke('process_panorama', {
-                sceneId: 'asset_' + id,
-                sourcePath: path,
-                outputDir,
-              }) as Array<{ label: string; path: string }>;
-              const high = resolutions.find((r) => r.label === 'high') || resolutions[0];
-              if (high) outputPath = high.path;
-            } else if (type === 'audio') {
-              const outputDir = appDir.endsWith('/') || appDir.endsWith('\\') ? appDir + 'media' : appDir + '/media';
-              outputPath = await invoke('convert_audio', { sourcePath: path, outputDir }) as string;
-            } else if (type === 'video') {
-              const outputDir = appDir.endsWith('/') || appDir.endsWith('\\') ? appDir + 'media' : appDir + '/media';
-              outputPath = await invoke('convert_video', { sourcePath: path, outputDir }) as string;
+            const id = generateAssetId();
+            let finalPath = path;
+            let finalName = name;
+            let finalSize = size;
+
+            try {
+              const appDir = await appDataDir();
+              let outputPath: string | null = null;
+
+              if (type === 'image') {
+                const outputDir = appDir.endsWith('/') || appDir.endsWith('\\') ? appDir + 'panoramas' : appDir + '/panoramas';
+                const resolutions = await invoke('process_panorama', {
+                  sceneId: 'asset_' + id,
+                  sourcePath: path,
+                  outputDir,
+                }) as Array<{ label: string; path: string }>;
+                const high = resolutions.find((r) => r.label === 'high') || resolutions[0];
+                if (high) outputPath = high.path;
+              } else if (type === 'audio') {
+                setUploadState(prev => prev ? { ...prev, status: 'Converting Audio...', progress: 50 } : prev);
+                const outputDir = appDir.endsWith('/') || appDir.endsWith('\\') ? appDir + 'media' : appDir + '/media';
+                outputPath = await invoke('convert_audio', { sourcePath: path, outputDir }) as string;
+              } else if (type === 'video') {
+                setUploadState(prev => prev ? { ...prev, status: 'Converting Video...', progress: 50 } : prev);
+                const outputDir = appDir.endsWith('/') || appDir.endsWith('\\') ? appDir + 'media' : appDir + '/media';
+                outputPath = await invoke('convert_video', { sourcePath: path, outputDir }) as string;
+              }
+
+              if (outputPath && outputPath !== path) {
+                const extMap: Record<AssetType, string> = {
+                  image: 'webp',
+                  audio: 'mp3',
+                  video: 'mp4',
+                  document: '',
+                };
+                const baseName = name.includes('.') ? name.substring(0, name.lastIndexOf('.')) : name;
+                finalName = `${baseName}.${extMap[type]}`;
+                finalPath = outputPath;
+                try {
+                  const meta = await stat(outputPath);
+                  finalSize = meta.size;
+                } catch { /* fallback to original size */ }
+              }
+            } catch (e) {
+              console.warn(`Conversion failed for ${name}, using original:`, e);
             }
 
-            if (outputPath && outputPath !== path) {
-              updateAsset(id, { path: outputPath });
-            }
-          } catch (e) {
-            console.warn(`Conversion failed for ${name}, using original:`, e);
+            addAsset({
+              id,
+              name: finalName,
+              path: finalPath,
+              type,
+              size: finalSize,
+              addedAt: new Date().toISOString(),
+            });
           }
-        });
+        } finally {
+          if (unlisten) unlisten();
+          setUploadState(null);
+        }
       }
     } catch (e) {
       console.error('Upload error', e);
       setUploading(false);
+      setUploadState(null);
     }
   };
 
@@ -318,6 +406,64 @@ export const AssetsView = () => {
         }}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      <Modal
+        open={uploadState?.isOpen || false}
+        onOpenChange={() => {}} // User cannot close this modal, they must wait
+        title="Uploading Assets"
+        size="sm"
+      >
+        {uploadState && (
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-text-primary mb-1">
+                Processing {uploadState.currentIndex} of {uploadState.total}
+              </span>
+              <span className="text-xs text-text-secondary truncate">
+                {uploadState.currentName}
+              </span>
+            </div>
+            
+            <div className="w-full h-2 bg-surface rounded-full overflow-hidden border border-border">
+              <div 
+                className="h-full bg-primary transition-all duration-300" 
+                style={{ width: `${uploadState.progress}%` }} 
+              />
+            </div>
+            
+            <div className="flex justify-between items-center text-xs text-text-secondary">
+              <span>{uploadState.status}</span>
+              <span>{uploadState.progress}%</span>
+            </div>
+            <div className="mt-1 text-[10px] text-text-secondary/70 italic text-left truncate">
+              Note: Larger files take longer to compress.
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={limitErrorModal.isOpen}
+        onOpenChange={(open) => { if (!open) setLimitErrorModal({ isOpen: false, message: '' }); }}
+        title="Upload Rejected"
+        size="sm"
+        actions={
+          <div className="flex w-full justify-end">
+            <Button onClick={() => setLimitErrorModal({ isOpen: false, message: '' })}>OK</Button>
+          </div>
+        }
+      >
+        <div className="text-sm text-text-primary mb-4">
+          <p>{limitErrorModal.message}</p>
+          {limitErrorModal.details && (
+            <ul className="list-disc pl-5 mt-2 max-h-32 overflow-y-auto text-xs text-text-secondary custom-scroll">
+              {limitErrorModal.details.map((n, i) => (
+                <li key={i} className="truncate">{n}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 };

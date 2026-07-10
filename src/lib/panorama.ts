@@ -2,8 +2,11 @@ import { convertFileSrc } from '@tauri-apps/api/core';
 import { readFile } from '@tauri-apps/plugin-fs';
 import { getMime } from '@/constants';
 
+import { blobUrlCache } from './vetourFile';
+
 export function getAssetUrl(path: string): string {
   if (!path) return '';
+  if (blobUrlCache.has(path)) return blobUrlCache.get(path)!;
   if (path.startsWith('http') || path.startsWith('asset:') || path.startsWith('blob:')) return path;
   try { return convertFileSrc(path); } catch { return path; }
 }
@@ -17,15 +20,27 @@ export function revokePanoramaBlobs() {
   panoramaBlobCache.clear();
 }
 
+const FILE_READ_TIMEOUT = 30000;
+
+async function readFileWithTimeout(path: string): Promise<Uint8Array> {
+  return Promise.race([
+    readFile(path),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`File read timed out after ${FILE_READ_TIMEOUT / 1000}s: ${path}`)), FILE_READ_TIMEOUT)
+    ),
+  ]);
+}
+
 export async function resolvePanoramaUrl(path: string): Promise<string> {
   if (!path) return '';
   if (path.startsWith('http') || path.startsWith('blob:')) return path;
 
+  if (blobUrlCache.has(path)) return blobUrlCache.get(path)!;
   const cached = panoramaBlobCache.get(path);
   if (cached) return cached;
 
   try {
-    const bytes = await readFile(path);
+    const bytes = await readFileWithTimeout(path);
     const mime = getMime(path) || 'image/jpeg';
     const blob = new Blob([bytes], { type: mime });
     const url = URL.createObjectURL(blob);
