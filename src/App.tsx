@@ -5,6 +5,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+import { emit } from '@tauri-apps/api/event';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { save } from '@tauri-apps/plugin-dialog';
 import { saveVetourFile } from '@/lib/vetourFile';
@@ -54,9 +55,7 @@ function App() {
       // Only emit from Editor window to Present window
       if (state.isPresentMode) return;
       if (state.project && state.project !== prevState.project) {
-        import('@tauri-apps/api/event').then(({ emit }) => {
-          emit('sync-present-data', JSON.stringify(state.project));
-        });
+        emit('sync-present-data', JSON.stringify(state.project));
       }
     });
     return unsub;
@@ -89,7 +88,6 @@ function App() {
 
       if (isPresentRef.current) {
         // Let Present window close normally, but notify main window
-        const { emit } = await import('@tauri-apps/api/event');
         await emit('present-closed');
         appWindow.destroy();
         return;
@@ -222,7 +220,6 @@ function App() {
       <ThemeProvider>
         <div className="h-screen flex flex-col bg-background overflow-hidden">
           <Titlebar page="present" onCloseRequest={async () => {
-            const { emit } = await import('@tauri-apps/api/event');
             await emit('present-closed');
             appWindow.destroy();
           }} />

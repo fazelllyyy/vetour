@@ -35,6 +35,8 @@ export const MIME_TYPES: Record<string, string> = {
   mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg',
   mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime',
   pdf: 'application/pdf', txt: 'text/plain', md: 'text/markdown',
+  csv: 'text/csv', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 };
 
 export const DEFAULT_MIME_TYPE = 'image/jpeg';
@@ -74,6 +76,7 @@ export const HOTSPOT_ACTION_OPTIONS = [
   { value: 'show_video', label: 'Show Video' },
   { value: 'show_text', label: 'Show Text' },
   { value: 'play_sound', label: 'Play Sound' },
+  { value: 'show_document', label: 'Show Document' },
 ] as const;
 
 export const TEXT_ALIGN_OPTIONS = [

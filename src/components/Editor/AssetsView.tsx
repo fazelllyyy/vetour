@@ -24,7 +24,7 @@ const typeConfig: Record<AssetType, { label: string; icon: React.ReactNode; acce
   image: { label: 'Images', icon: <Image className="w-5 h-5" />, accept: '.png,.jpg,.jpeg,.webp' },
   audio: { label: 'Audio', icon: <Music className="w-5 h-5" />, accept: '.mp3,.wav,.ogg,.m4a,.aac,.flac,.opus' },
   video: { label: 'Videos', icon: <Video className="w-5 h-5" />, accept: '.mp4,.webm,.mov,.avi,.mkv,.wmv,.flv,.mts' },
-  document: { label: 'Documents', icon: <FileText className="w-5 h-5" />, accept: '.pdf,.txt,.md' },
+  document: { label: 'Documents', icon: <FileText className="w-5 h-5" />, accept: '.pdf,.txt,.md,.csv,.docx,.xlsx' },
 };
 
 function fileIcon(name: string): React.ReactNode {

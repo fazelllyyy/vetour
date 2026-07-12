@@ -41,10 +41,22 @@ export default defineConfig(async () => ({
     },
   },
   build: {
+    chunkSizeWarningLimit: 2000,
     rollupOptions: {
       external: [
         /^\.\.\/deploy\/index$/
-      ]
+      ],
+      output: {
+        manualChunks: {
+          'vendor': ['react', 'react-dom'],
+          'psv': [
+            '@photo-sphere-viewer/core', 
+            '@photo-sphere-viewer/virtual-tour-plugin', 
+            '@photo-sphere-viewer/markers-plugin'
+          ],
+          'document-renderers': ['mammoth', 'xlsx', 'papaparse', 'react-markdown']
+        }
+      }
     }
   }
 }));

@@ -13,6 +13,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import { getAssetUrl } from '@/lib/panorama';
 import { PSVViewer } from './PSVViewer';
 import { PropertyPanel } from './PropertyPanel';
+import { DocumentRenderer } from '../Present/DocumentRenderer';
 import { Play, Trash2, MapPin, X } from 'lucide-react';
 import type { InfoHotspot } from '@/types/tour';
 import { DEFAULT_PROJECT_NAME, generateProjectId, generateSceneId, generateHotspotId, MODAL_MAX_HEIGHT_RATIO } from '@/constants';
@@ -217,7 +218,7 @@ export const PanoramaPage = () => {
 
           {previewHotspot && (
             <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40" onClick={() => setPreviewHotspot(null)}>
-              <div className="bg-surface border border-border rounded-lg shadow-2xl flex flex-col" style={{ maxHeight: modalMaxH, width: 'fit-content', minWidth: '300px', maxWidth: '70vw' }} onClick={(e) => e.stopPropagation()}>
+              <div className="bg-surface border border-border rounded-lg shadow-2xl flex flex-col max-h-[70%] overflow-hidden" style={{ width: 'fit-content', minWidth: '300px', maxWidth: '90%' }} onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0">
                   <h3 className="font-semibold text-lg truncate text-text-primary">
                     {typeof previewHotspot.marker.tooltip === 'string' ? previewHotspot.marker.tooltip : previewHotspot.marker.tooltip?.content || 'Preview'}
@@ -226,51 +227,57 @@ export const PanoramaPage = () => {
                     <X className="w-5 h-5" />
                   </button>
                 </div>
-                <ScrollArea className="flex-1 min-h-0">
-                  <div className="flex items-center justify-center p-4">
-                    {(() => {
-                      const marker = previewHotspot.marker;
-                      const data = marker.data ?? {};
-                      const action = (data.action as string) || 'show_text';
-                      const contentMaxH = modalMaxH - 65;
+                {(() => {
+                  const marker = previewHotspot.marker;
+                  const data = marker.data ?? {};
+                  const action = (data.action as string) || 'show_text';
+                  const isDocument = action === 'show_document';
 
-                      if (action === 'show_image' && marker.image) {
-                        return <img src={getAssetUrl(marker.image)} alt="Preview" style={{ maxWidth: '100%', maxHeight: contentMaxH, width: 'auto', height: 'auto', objectFit: 'contain' }} />;
-                      }
-                      if (action === 'show_video' && (data.video as string)) {
-                        return (
-                          <video controls autoPlay style={{ maxWidth: '100%', maxHeight: contentMaxH, width: 'auto', height: 'auto' }}>
-                            <source src={getAssetUrl(data.video as string)} />
-                          </video>
-                        );
-                      }
-                      if (action === 'show_text' && marker.content) {
-                        return (
-                          <div style={{ maxWidth: '600px', width: '100%' }}>
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ textAlign: (data.textAlign as React.CSSProperties['textAlign']) || 'center' }}>{marker.content}</p>
-                          </div>
-                        );
-                      }
-                      if (action === 'show_document' && marker.content) {
-                        return (
-                          <div style={{ maxWidth: '700px' }}>
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{marker.content}</p>
-                          </div>
-                        );
-                      }
-                      if (action === 'play_sound' && (data.audio as string)) {
-                        return (
-                          <div className="flex flex-col items-center gap-4 p-6">
-                            <audio controls autoPlay={!!data.autoPlay} className="w-80 max-w-full">
-                              <source src={getAssetUrl(data.audio as string)} />
-                            </audio>
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
-                  </div>
-                </ScrollArea>
+                  return (
+                    <ScrollArea className={`flex-1 min-h-0 ${isDocument ? 'bg-white text-black rounded-b-lg' : ''}`}>
+                      <div className={isDocument ? 'flex flex-col' : 'flex items-center justify-center p-4'}>
+                        {(() => {
+                          const contentMaxH = modalMaxH - 65;
+
+                          if (action === 'show_image' && marker.image) {
+                            return <img src={getAssetUrl(marker.image)} alt="Preview" style={{ maxWidth: '100%', maxHeight: contentMaxH, width: 'auto', height: 'auto', objectFit: 'contain' }} />;
+                          }
+                          if (action === 'show_video' && (data.video as string)) {
+                            return (
+                              <video controls autoPlay style={{ maxWidth: '100%', maxHeight: contentMaxH, width: 'auto', height: 'auto' }}>
+                                <source src={getAssetUrl(data.video as string)} />
+                              </video>
+                            );
+                          }
+                          if (action === 'show_text' && marker.content) {
+                            return (
+                              <div style={{ maxWidth: '600px', width: '100%' }}>
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ textAlign: (data.textAlign as React.CSSProperties['textAlign']) || 'center' }}>{marker.content}</p>
+                              </div>
+                            );
+                          }
+                          if (action === 'show_document' && (data.document as string)) {
+                            return (
+                              <div style={{ maxWidth: '800px', width: '100%' }}>
+                                <DocumentRenderer src={getAssetUrl(data.document as string)} title="Preview" />
+                              </div>
+                            );
+                          }
+                          if (action === 'play_sound' && (data.audio as string)) {
+                            return (
+                              <div className="flex flex-col items-center gap-4 p-6">
+                                <audio controls autoPlay={!!data.autoPlay} className="w-80 max-w-full">
+                                  <source src={getAssetUrl(data.audio as string)} />
+                                </audio>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    </ScrollArea>
+                  );
+                })()}
               </div>
             </div>
           )}

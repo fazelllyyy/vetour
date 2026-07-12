@@ -3,7 +3,9 @@
  *  Licensed under the MIT License. See LICENSE file in the project root for license information.
  *-----------------------------------------------------------------------------------------------*/
 
-import { writeFile, readFile } from '@tauri-apps/plugin-fs';
+import { writeFile, readFile, mkdir } from '@tauri-apps/plugin-fs';
+import { join, tempDir } from '@tauri-apps/api/path';
+import { convertFileSrc } from '@tauri-apps/api/core';
 import { gzip, ungzip } from 'pako';
 import type { TourProject } from '../types/tour';
 
@@ -177,9 +179,7 @@ export async function loadVetourFile(filePath: string): Promise<TourProject> {
       off += dlen;
 
       const safeName = origPath.replace(/[/\\]/g, '_');
-      const { join, tempDir } = await import('@tauri-apps/api/path');
-      const { mkdir, writeFile } = await import('@tauri-apps/plugin-fs');
-      const { convertFileSrc } = await import('@tauri-apps/api/core');
+
       
       const tDir = await tempDir();
       const sessionDir = await join(tDir, 'vetour_session');

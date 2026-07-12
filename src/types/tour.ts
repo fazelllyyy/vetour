@@ -31,6 +31,7 @@ export interface InfoHotspot {
 }
 
 export interface NavigationHotspot {
+  id?: string;
   nodeId: string;
   position?: { yaw: number | string; pitch: number | string };
   gps?: GpsTuple;

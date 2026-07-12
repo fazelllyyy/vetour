@@ -5,7 +5,9 @@
 
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { TourProject } from '@/types/tour';
+import { blobUrlCache } from './vetourFile';
 import { useTourStore } from '@/store/useTourStore';
 import { useToastStore } from '@/store/toastStore';
 import { DEFAULT_PROJECT_NAME, PRESENT_WINDOW_SIZE_RATIO, PRESENT_WINDOW_MIN_RATIO } from '@/constants';
@@ -19,7 +21,7 @@ export async function openPresentWindow(project: TourProject | null) {
 
   const label = 'present-' + Date.now();
 
-  const { blobUrlCache } = await import('./vetourFile');
+
   const presentData = {
     project,
     assetMap: Object.fromEntries(blobUrlCache.entries())
@@ -51,11 +53,9 @@ export async function openPresentWindow(project: TourProject | null) {
     useTourStore.getState().setPresentMode(false);
   });
 
-  import('@tauri-apps/api/event').then(({ listen }) => {
-    listen('present-closed', () => {
-      useTourStore.getState().setPresentMode(false);
-      w.close().catch(() => {});
-    });
+  listen('present-closed', () => {
+    useTourStore.getState().setPresentMode(false);
+    w.close().catch(() => {});
   });
 
   w.once('tauri://error', (e) => {

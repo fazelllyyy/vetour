@@ -69,6 +69,9 @@ export const useTourStore = create<TourState>((set) => ({
       s.markers.forEach(m => {
         if (!m.id) m.id = generateHotspotId();
       });
+      s.links.forEach(l => {
+        if (!l.id) l.id = generateHotspotId();
+      });
     });
     set({ project, activeSceneId: project.defaultSceneId || (project.scenes.length > 0 ? project.scenes[0].id : null), projectLoading: false, viewerLoading: project.scenes.length > 0 });
   },
@@ -77,6 +80,9 @@ export const useTourStore = create<TourState>((set) => ({
       s.markers.forEach(m => {
         if (!m.id) m.id = generateHotspotId();
       });
+      s.links.forEach(l => {
+        if (!l.id) l.id = generateHotspotId();
+      });
     });
     set({ project, activeSceneId: project.defaultSceneId || (project.scenes.length > 0 ? project.scenes[0].id : null), unsavedChanges: false, projectLoading: false, viewerLoading: project.scenes.length > 0 });
   },
@@ -84,6 +90,9 @@ export const useTourStore = create<TourState>((set) => ({
     project.scenes.forEach(s => {
       s.markers.forEach(m => {
         if (!m.id) m.id = generateHotspotId();
+      });
+      s.links.forEach(l => {
+        if (!l.id) l.id = generateHotspotId();
       });
     });
     set({ project, projectLoading: false });
@@ -198,7 +207,7 @@ export const useTourStore = create<TourState>((set) => ({
         scenes: state.project.scenes.map(s => 
           s.id === sceneId ? {
             ...s,
-            links: s.links.map(h => h.nodeId === hotspotId ? { ...h, ...updates } : h)
+            links: s.links.map(h => h.id === hotspotId ? { ...h, ...updates } : h)
           } : s
         )
       },
@@ -214,10 +223,11 @@ export const useTourStore = create<TourState>((set) => ({
         scenes: state.project.scenes.map(s => 
           s.id === sceneId ? {
             ...s,
-            links: s.links.filter(h => h.nodeId !== hotspotId)
+            links: s.links.filter(h => h.id !== hotspotId)
           } : s
         )
       },
+      selectedHotspotId: state.selectedHotspotId === hotspotId ? null : state.selectedHotspotId,
       unsavedChanges: true
     };
   }),

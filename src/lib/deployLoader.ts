@@ -4,9 +4,13 @@ interface DeployModule {
 
 export async function loadDeployModule(): Promise<DeployModule | null> {
   try {
-    const modulePath = '../deploy/index';
-    const mod = await import(/* @vite-ignore */ modulePath);
-    return mod as DeployModule;
+    const modules = import.meta.glob('../deploy/index.ts');
+    const keys = Object.keys(modules);
+    if (keys.length > 0) {
+      const mod = await modules[keys[0]]();
+      return mod as DeployModule;
+    }
+    return null;
   } catch {
     return null;
   }

@@ -68,11 +68,11 @@ function getActionMarkerIcon(action: string, label: string): string {
 }
 
 function getMarkerId(m: NavigationHotspot | InfoHotspot): string {
-  if ('nodeId' in m) return 'nav_' + m.nodeId;
+  if ('nodeId' in m) return m.id || 'nav_' + m.nodeId;
   return m.id || `hotspot_${Math.random().toString(36).substring(2, 9)}`;
 }
 
-function getMarkerData(m: NavigationHotspot | InfoHotspot): { id: string; position: { yaw: number; pitch: number }; html: string; anchor?: string } {
+function getMarkerData(m: NavigationHotspot | InfoHotspot): { id: string; position: { yaw: number; pitch: number }; html: string; anchor?: string, data?: Record<string, unknown> } {
   const id = getMarkerId(m);
   const pos = m.position
     ? { yaw: Number(m.position.yaw) || 0, pitch: Number(m.position.pitch) || 0 }
@@ -85,6 +85,7 @@ function getMarkerData(m: NavigationHotspot | InfoHotspot): { id: string; positi
       position: pos,
       html: getActionMarkerIcon('navigate', name),
       anchor: 'center center',
+      data: { isNav: true, targetId: m.nodeId }
     };
   }
 
@@ -288,6 +289,10 @@ export const PSVViewer = ({ onPresentMarkerClick, onRightClickPlace, onCancelPla
       const markerId = e.marker?.id ?? null;
       if (!markerId) return;
 
+      const marker = mp.getMarker(markerId);
+      const isNav = marker?.config.data?.isNav;
+      const targetId = marker?.config.data?.targetId;
+
       const prev = lastClickRef.current;
       if (prev && prev.markerId === markerId && Date.now() - prev.time < 350) {
         if (clickTimerRef.current) {
@@ -296,7 +301,7 @@ export const PSVViewer = ({ onPresentMarkerClick, onRightClickPlace, onCancelPla
         }
         lastClickRef.current = null;
 
-        if (!s.isPresentMode && !markerId.startsWith('nav_') && s.activeSceneId) {
+        if (!s.isPresentMode && !isNav && s.activeSceneId) {
           onHotspotDoubleClickRef.current?.(s.activeSceneId, markerId);
         }
         return;
@@ -309,17 +314,16 @@ export const PSVViewer = ({ onPresentMarkerClick, onRightClickPlace, onCancelPla
         clickTimerRef.current = null;
         const state = useTourStore.getState();
 
-        if (markerId.startsWith('nav_')) {
-          const targetId = markerId.slice(4);
-          if (state.project?.scenes.some(sc => sc.id === targetId)) {
-            if (state.isPresentMode) {
+        if (isNav) {
+          if (state.isPresentMode) {
+            if (state.project?.scenes.some(sc => sc.id === targetId)) {
               mp.clearMarkers();
               setTimeout(() => {
                 try { vp.setCurrentNode(targetId); } catch(err) { console.warn(err); }
               }, 50);
-            } else {
-              state.setSelectedHotspot(targetId);
             }
+          } else {
+            state.setSelectedHotspot(markerId);
           }
           return;
         }
@@ -406,9 +410,9 @@ export const PSVViewer = ({ onPresentMarkerClick, onRightClickPlace, onCancelPla
         const activeSceneId = state.activeSceneId;
 
         if (validPos && activeSceneId) {
-          if (draggingMarkerId.startsWith('nav_')) {
-            const targetId = draggingMarkerId.slice(4);
-            state.updateNavHotspot(activeSceneId, targetId, { position: { yaw: validPos.yaw, pitch: validPos.pitch } });
+          const marker = mp.getMarker(draggingMarkerId);
+          if (marker?.config.data?.isNav) {
+            state.updateNavHotspot(activeSceneId, draggingMarkerId, { position: { yaw: validPos.yaw, pitch: validPos.pitch } });
           } else {
             state.updateInfoHotspot(activeSceneId, draggingMarkerId, { position: { yaw: validPos.yaw, pitch: validPos.pitch } });
           }

@@ -8,15 +8,19 @@ import { useTourStore } from '@/store/useTourStore';
 import { PSVViewer } from '../Editor/PSVViewer';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/core';
+import { emit, listen } from '@tauri-apps/api/event';
 import { getAssetUrl } from '@/lib/panorama';
+import { DocumentRenderer } from './DocumentRenderer';
+import { blobUrlCache } from '@/lib/vetourFile';
 import { Play, Pause, X, Music, Loader2 } from 'lucide-react';
 import { ScrollArea } from '../ui/scroll-area';
 
 interface PresentModalState {
-  type: 'image' | 'video' | 'text' | null;
+  type: 'image' | 'video' | 'text' | 'document' | null;
   title: string;
   imageSrc?: string;
   videoSrc?: string;
+  documentSrc?: string;
   textContent?: string;
   textAlign?: 'left' | 'center' | 'right';
 }
@@ -56,7 +60,6 @@ export const PresentWindow = () => {
             
             if (Object.keys(assetMap).length > 0) {
               try {
-                const { blobUrlCache } = await import('@/lib/vetourFile');
                 for (const [k, v] of Object.entries(assetMap)) {
                   blobUrlCache.set(k, v as string);
                 }
@@ -81,18 +84,16 @@ export const PresentWindow = () => {
     setPresentMode(true);
 
     let unlisten: (() => void) | undefined;
-    import('@tauri-apps/api/event').then(({ listen }) => {
-      listen<string>('sync-present-data', (e) => {
-        try {
-          const data = JSON.parse(e.payload);
-          updateProject(data);
-          // Don't auto-change scene on sync, keep user where they are
-        } catch (err) {
-          console.error('[PresentWindow] Failed to sync data:', err);
-        }
-      }).then((f) => {
-        unlisten = f;
-      });
+    listen<string>('sync-present-data', (e) => {
+      try {
+        const data = JSON.parse(e.payload);
+        updateProject(data);
+        // Don't auto-change scene on sync, keep user where they are
+      } catch (err) {
+        console.error('[PresentWindow] Failed to sync data:', err);
+      }
+    }).then((f) => {
+      unlisten = f;
     });
 
     const handleKey = async (e: KeyboardEvent) => {
@@ -113,7 +114,6 @@ export const PresentWindow = () => {
         setDuration(0);
         return;
       }
-      const { emit } = await import('@tauri-apps/api/event');
       await emit('present-closed');
       getCurrentWindow().destroy();
     };
@@ -225,6 +225,14 @@ export const PresentWindow = () => {
         }
         break;
       }
+      case 'show_document': {
+        const documentPath = md.document as string | undefined;
+        if (documentPath) {
+          stopAudio();
+          setModalState({ type: 'document', title: tooltip, documentSrc: getAssetUrl(documentPath) });
+        }
+        break;
+      }
       case 'play_sound': {
         const audioPath = md.audio as string | undefined;
         if (audioPath) {
@@ -310,6 +318,30 @@ export const PresentWindow = () => {
             >
               <source src={modalState.videoSrc} />
             </video>
+          </div>
+        </div>
+      )}
+
+      {modalState.type === 'document' && modalState.documentSrc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={closeModal}>
+          <div className="w-fit min-w-[300px] max-w-[90%] max-h-[70vh] rounded-lg border border-border bg-surface text-text-primary overflow-hidden flex flex-col shadow-2xl"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border shrink-0">
+              <h3 className="font-semibold text-lg truncate mr-4">{modalState.title}</h3>
+              <button
+                onClick={closeModal}
+                className="text-text-secondary hover:text-text-primary transition-colors p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <ScrollArea className="flex-1 min-h-0 bg-white">
+              <DocumentRenderer
+                src={modalState.documentSrc}
+                title={modalState.title}
+              />
+            </ScrollArea>
           </div>
         </div>
       )}
