@@ -8,50 +8,95 @@ import { Viewer } from '@photo-sphere-viewer/core';
 import { VirtualTourPlugin } from '@photo-sphere-viewer/virtual-tour-plugin';
 import { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin';
 import { useTourStore } from '@/store/useTourStore';
-import { resolvePanoramaUrl } from '@/lib/panorama';
+import { resolvePanoramaUrl, getAssetUrl } from '@/lib/panorama';
 import type { VirtualTourNode } from '@photo-sphere-viewer/virtual-tour-plugin';
 import type { TourProject, TourScene, NavigationHotspot, InfoHotspot } from '@/types/tour';
 import '@photo-sphere-viewer/core/index.css';
 import '@photo-sphere-viewer/markers-plugin/index.css';
 import '@photo-sphere-viewer/virtual-tour-plugin/index.css';
+import { LUCIDE_ICONS } from '@/icons';
+import type { AssetEntry } from '@/types/tour';
+
+export interface HotspotStyle {
+  bgType?: 'solid' | 'gradient';
+  bgColor?: string;
+  bgGradient?: string;
+  textColor?: string;
+  iconColor?: string;
+  radius?: string;
+  icon?: string;
+  fontFamilyAssetId?: string;
+  opacity?: number;
+}
 
 
 
-function getActionMarkerIcon(action: string, label: string): string {
+function getActionMarkerIcon(action: string, label: string, style?: HotspotStyle, fontUrl?: string): string {
   let iconSvg: string;
-  switch (action) {
-    case 'navigate':
-      iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>`;
-      break;
-    case 'show_image':
-      iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`;
-      break;
-    case 'show_video':
-      iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>`;
-      break;
-    case 'show_text':
-      iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>`;
-      break;
-    case 'show_document':
-      iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>`;
-      break;
-    case 'play_sound':
-      iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
-      break;
-    default:
-      iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>`;
+  
+  if (style?.icon && LUCIDE_ICONS[style.icon]) {
+    iconSvg = LUCIDE_ICONS[style.icon];
+  } else {
+    switch (action) {
+      case 'navigate': iconSvg = LUCIDE_ICONS['arrow-up']; break;
+      case 'show_image': iconSvg = LUCIDE_ICONS['image']; break;
+      case 'show_video': iconSvg = LUCIDE_ICONS['video']; break;
+      case 'show_text': iconSvg = LUCIDE_ICONS['file-text']; break;
+      case 'show_document': iconSvg = LUCIDE_ICONS['file-text']; break;
+      case 'play_sound': iconSvg = LUCIDE_ICONS['music']; break;
+      default: iconSvg = LUCIDE_ICONS['info'];
+    }
+  }
+  const bgOpacity = style?.opacity ?? 0.6; // Backward compatibility
+  let bg = style?.bgType === 'gradient' ? (style.bgGradient || 'linear-gradient(90deg, rgba(255,0,0,1) 0%, rgba(0,0,255,1) 100%)') : (style?.bgColor || '#000000');
+  
+  // Convert HEX to RGBA if solid color
+  if (style?.bgType !== 'gradient') {
+    const hex = bg.startsWith('#') ? bg : '#000000';
+    const r = parseInt(hex.slice(1, 3), 16) || 0;
+    const g = parseInt(hex.slice(3, 5), 16) || 0;
+    const b = parseInt(hex.slice(5, 7), 16) || 0;
+    bg = `rgba(${r}, ${g}, ${b}, ${bgOpacity})`;
+  } else {
+    // If it's a gradient, we can't easily apply opacity to the CSS string,
+    // so we could wrap the div or just rely on the gradient's own opacity.
+    // For simplicity, we'll let gradient be as is, but we can also set the div opacity.
   }
 
+  // User said "Hotspot Opacity", meaning the background opacity or the whole hotspot?
+  // Usually opacity for the background is preferred so text remains readable, but "Hotspot Opacity" implies the whole thing.
+  // I'll apply bgOpacity to the background if solid, and if it's gradient I will just rely on the gradient string (or apply to the background if possible). Let's just use `rgba` for solid.
+
+  const textColor = style?.textColor || '#ffffff';
+  const iconColor = style?.iconColor || '#ffffff';
+  const radius = style?.radius || '9999px';
+  const fontFamily = fontUrl ? `'CustomFont_${style?.fontFamilyAssetId}', sans-serif` : 'sans-serif';
+
+  const fontFormat = fontUrl ? (() => {
+    const ext = fontUrl.split('.').pop()?.toLowerCase();
+    if (ext === 'woff2') return 'woff2';
+    if (ext === 'woff') return 'woff';
+    return 'truetype';
+  })() : '';
+  const fontFaceStyle = fontUrl ? `<style>
+    @font-face {
+      font-family: 'CustomFont_${style!.fontFamilyAssetId}';
+      src: url('${fontUrl}') format('${fontFormat}');
+    }
+  </style>` : '';
+
   return `
+    ${fontFaceStyle}
     <div style="
       display: flex;
       align-items: center;
       gap: 6px;
       padding: 6px 12px;
-      background: rgba(0, 0, 0, 0.6);
-      color: white;
-      border-radius: 9999px;
-      font-family: sans-serif;
+      background: ${bg};
+      ${style?.bgType === 'gradient' ? `opacity: ${bgOpacity};` : ''}
+      color: ${textColor};
+      border-radius: ${radius};
+      font-family: ${fontFamily};
       font-size: 14px;
       font-weight: 500;
       cursor: pointer;
@@ -60,8 +105,10 @@ function getActionMarkerIcon(action: string, label: string): string {
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
       transition: all 0.2s ease-in-out;
       white-space: nowrap;
-    " onmouseover="this.style.background='rgba(0, 0, 0, 0.8)';this.style.border='1px solid rgba(255, 255, 255, 0.4)'" onmouseout="this.style.background='rgba(0, 0, 0, 0.6)';this.style.border='1px solid rgba(255, 255, 255, 0.2)'">
-      ${iconSvg}
+    " onmouseover="this.style.filter='brightness(1.2)';" onmouseout="this.style.filter='brightness(1)';">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${iconColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        ${iconSvg}
+      </svg>
       <span>${label}</span>
     </div>
   `;
@@ -72,42 +119,53 @@ function getMarkerId(m: NavigationHotspot | InfoHotspot): string {
   return m.id || `hotspot_${Math.random().toString(36).substring(2, 9)}`;
 }
 
-function getMarkerData(m: NavigationHotspot | InfoHotspot): { id: string; position: { yaw: number; pitch: number }; html: string; anchor?: string, data?: Record<string, unknown> } {
+function getMarkerData(m: NavigationHotspot | InfoHotspot, assets: AssetEntry[] = []): { id: string; position: { yaw: number; pitch: number }; html: string; anchor?: string, data?: Record<string, unknown> } {
   const id = getMarkerId(m);
   const pos = m.position
     ? { yaw: Number(m.position.yaw) || 0, pitch: Number(m.position.pitch) || 0 }
     : { yaw: 0, pitch: 0 };
+
+  const md = ('data' in m ? m.data ?? {} : {}) as Record<string, unknown>;
+  const style = md.style as HotspotStyle | undefined;
+  
+  let fontUrl = '';
+  if (style?.fontFamilyAssetId) {
+    const fontAsset = assets.find(a => a.id === style.fontFamilyAssetId);
+    if (fontAsset) {
+      fontUrl = getAssetUrl(fontAsset.path);
+    }
+  }
 
   if ('nodeId' in m) {
     const name = m.name || 'Navigate';
     return {
       id,
       position: pos,
-      html: getActionMarkerIcon('navigate', name),
+      html: getActionMarkerIcon('navigate', name, style, fontUrl),
       anchor: 'center center',
-      data: { isNav: true, targetId: m.nodeId }
+      data: { isNav: true, targetId: m.nodeId, style: md.style }
     };
   }
 
-  const md = (m.data ?? {}) as Record<string, unknown>;
   const action = (md.action as string) || (m.image ? 'show_image' : m.content ? 'show_text' : 'show_text');
   const tooltip = typeof m.tooltip === 'string' ? m.tooltip : m.tooltip?.content || 'Hotspot';
   return {
     id,
     position: pos,
-    html: getActionMarkerIcon(action, tooltip),
+    html: getActionMarkerIcon(action, tooltip, style, fontUrl),
     anchor: 'center center',
+    data: m.data
   };
 }
 
-function getSceneMarkers(scene: TourScene) {
+function getSceneMarkers(scene: TourScene, assets: AssetEntry[] = []) {
   const markers: Array<ReturnType<typeof getMarkerData>> = [];
   for (const link of scene.links) {
     if (link.nodeId === scene.id) continue;
-    markers.push(getMarkerData(link));
+    markers.push(getMarkerData(link, assets));
   }
   for (const m of scene.markers) {
-    markers.push(getMarkerData(m));
+    markers.push(getMarkerData(m, assets));
   }
   return markers;
 }
@@ -191,9 +249,9 @@ export const PSVViewer = ({ onPresentMarkerClick, onRightClickPlace, onCancelPla
   const lastClickRef = useRef<{ markerId: string; time: number } | null>(null);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function updateSceneMarkers(markersPlugin: MarkersPlugin, scene: TourScene) {
+  function updateSceneMarkers(markersPlugin: MarkersPlugin, scene: TourScene, assets: AssetEntry[] = []) {
     markersPlugin.clearMarkers();
-    const markers = getSceneMarkers(scene);
+    const markers = getSceneMarkers(scene, assets);
     markersPlugin.setMarkers(markers);
   }
 
@@ -246,7 +304,7 @@ export const PSVViewer = ({ onPresentMarkerClick, onRightClickPlace, onCancelPla
       
       const scene = s.project?.scenes.find(sc => sc.id === e.node.id);
       if (scene) {
-        updateSceneMarkers(mp, scene);
+        updateSceneMarkers(mp, scene, s.project?.assets || []);
       }
     });
 
@@ -480,8 +538,14 @@ export const PSVViewer = ({ onPresentMarkerClick, onRightClickPlace, onCancelPla
 
     // Persistent listener — clears loading state every time a panorama fully renders
     const onPanoramaLoaded = () => {
-      useTourStore.getState().setViewerLoading(false);
-      setIsLoading(false);
+      setTimeout(() => {
+        useTourStore.getState().setViewerLoading(false);
+        setIsLoading(false);
+        // Force resize after the skeleton overlay unmounts
+        setTimeout(() => {
+          window.dispatchEvent(new Event('resize'));
+        }, 50);
+      }, 300);
     };
     viewer.addEventListener('panorama-loaded', onPanoramaLoaded);
 
@@ -499,6 +563,7 @@ export const PSVViewer = ({ onPresentMarkerClick, onRightClickPlace, onCancelPla
                 if (args[0].includes('Multiple instances of Three.js')) return;
                 if (args[0].includes('has no links')) return;
                 if (args[0].includes('is never linked to')) return;
+                if (args[0].includes("Couldn't find callback id")) return;
               }
               originalWarn.apply(console, args);
             };
@@ -519,7 +584,7 @@ export const PSVViewer = ({ onPresentMarkerClick, onRightClickPlace, onCancelPla
             if (passedActiveId) {
               setTimeout(() => {
                 const initialScene = project.scenes.find(s => s.id === passedActiveId);
-                if (initialScene && mp) updateSceneMarkers(mp, initialScene);
+                if (initialScene && mp) updateSceneMarkers(mp, initialScene, project.assets || []);
               }, 300);
             }
           } catch (err) {
@@ -530,6 +595,9 @@ export const PSVViewer = ({ onPresentMarkerClick, onRightClickPlace, onCancelPla
             setTimeout(() => {
               setIsLoading(false);
               setViewerLoading(false);
+              setTimeout(() => {
+                window.dispatchEvent(new Event('resize'));
+              }, 50);
             }, 800);
           }
         });
@@ -616,7 +684,7 @@ export const PSVViewer = ({ onPresentMarkerClick, onRightClickPlace, onCancelPla
               if (passedActiveId) {
                 setTimeout(() => {
                   const initialScene = state.project?.scenes.find(s => s.id === passedActiveId);
-                  if (initialScene && mp) updateSceneMarkers(mp, initialScene);
+                  if (initialScene && mp) updateSceneMarkers(mp, initialScene, state.project?.assets || []);
                 }, 300);
               }
             } catch (err) {
@@ -627,6 +695,9 @@ export const PSVViewer = ({ onPresentMarkerClick, onRightClickPlace, onCancelPla
             setTimeout(() => {
               setIsLoading(false);
               setViewerLoading(false);
+              setTimeout(() => {
+                window.dispatchEvent(new Event('resize'));
+              }, 50);
             }, 800);
           });
         }
@@ -653,9 +724,12 @@ export const PSVViewer = ({ onPresentMarkerClick, onRightClickPlace, onCancelPla
         // The viewer is already showing the right panorama, so clear loading immediately.
         setIsLoading(false);
         setViewerLoading(false);
+        setTimeout(() => {
+          window.dispatchEvent(new Event('resize'));
+        }, 50);
         const activeScene = state.project.scenes.find(s => s.id === state.activeSceneId);
         if (mp && activeScene) {
-          updateSceneMarkers(mp, activeScene);
+          updateSceneMarkers(mp, activeScene, state.project.assets || []);
         }
       }
     });

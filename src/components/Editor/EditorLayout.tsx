@@ -68,17 +68,21 @@ export const EditorLayout = ({ onNavigateHome }: EditorLayoutProps) => {
   };
 
   const handleSaveAndExit = async () => {
-    if (!project) return;
+    // Wait for any pending debounced updates (e.g. from PropertyPanel) to flush
+    await new Promise(resolve => setTimeout(resolve, 350));
+    
+    const currentProject = useTourStore.getState().project;
+    if (!currentProject) return;
     try {
       if (savedPath) {
-        const updated = { ...project, updatedAt: new Date().toISOString() };
+        const updated = { ...currentProject, updatedAt: new Date().toISOString() };
         await unlockProjectFile();
         await saveVetourFile(savedPath, updated);
         await lockProjectFile(savedPath);
         markSave();
         updateProject(updated);
         setUnsavedChanges(false);
-        const fileName = savedPath.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, '') || project.name;
+        const fileName = savedPath.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, '') || currentProject.name;
         useProjectListStore.getState().addProject({
           id: updated.id,
           name: updated.name === DEFAULT_PROJECT_NAME ? fileName : updated.name,
@@ -89,12 +93,12 @@ export const EditorLayout = ({ onNavigateHome }: EditorLayoutProps) => {
       } else {
         const selected = await save({
           filters: [{ name: FILE_FILTER_NAME, extensions: [...FILE_FILTER_EXTENSIONS] }],
-          defaultPath: `${project.name}.vetour`,
+          defaultPath: `${currentProject.name}.vetour`,
         });
         if (!selected) return;
-        const fileName = selected.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, '') || project.name;
-        const name = project.name === DEFAULT_PROJECT_NAME ? fileName : project.name;
-        const updated = { ...project, name, updatedAt: new Date().toISOString() };
+        const fileName = selected.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, '') || currentProject.name;
+        const name = currentProject.name === DEFAULT_PROJECT_NAME ? fileName : currentProject.name;
+        const updated = { ...currentProject, name, updatedAt: new Date().toISOString() };
         await unlockProjectFile();
         await saveVetourFile(selected, updated);
         await lockProjectFile(selected);

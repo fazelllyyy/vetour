@@ -5,6 +5,7 @@
 
 export const DEFAULT_PROJECT_NAME = 'Untitled';
 export const APP_NAME = 'Vetour';
+export const FAZELSTUDIO_URL = 'https://fazelstudio.vercel.app';
 
 export const PROJECT_ID_PREFIX = 'proj_';
 export const SCENE_ID_PREFIX = 'scene_';
@@ -18,8 +19,16 @@ export const STORAGE_KEY_THEME = 'vetour-theme';
 export const PRESENT_WINDOW_SIZE_RATIO = 0.7;
 export const PRESENT_WINDOW_MIN_RATIO = 0.6;
 
-export const MAX_UPLOAD_SIZE = 20 * 1024 * 1024;
-export const MAX_UPLOAD_SIZE_MB = 20;
+export const MAX_UPLOAD_SIZE = 15 * 1024 * 1024;
+export const MAX_UPLOAD_SIZE_MB = 15;
+
+export const MAX_ASSET_LIMITS: Record<string, number> = {
+  image: 20,
+  video: 5,
+  audio: 5,
+  document: 5,
+  font: 5,
+};
 export const MAX_TOASTS = 5;
 export const MAX_RECENT_PROJECTS_HOME = 5;
 export const MAX_RECENT_PROJECTS_MODAL = 10;
@@ -37,6 +46,7 @@ export const MIME_TYPES: Record<string, string> = {
   pdf: 'application/pdf', txt: 'text/plain', md: 'text/markdown',
   csv: 'text/csv', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ttf: 'font/ttf', woff: 'font/woff', woff2: 'font/woff2',
 };
 
 export const DEFAULT_MIME_TYPE = 'image/jpeg';

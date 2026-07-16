@@ -84,7 +84,7 @@ export const useTourStore = create<TourState>((set) => ({
         if (!l.id) l.id = generateHotspotId();
       });
     });
-    set({ project, activeSceneId: project.defaultSceneId || (project.scenes.length > 0 ? project.scenes[0].id : null), unsavedChanges: false, projectLoading: false, viewerLoading: project.scenes.length > 0 });
+    set({ project, activeSceneId: project.defaultSceneId || (project.scenes.length > 0 ? project.scenes[0].id : null), unsavedChanges: false, projectLoading: false, viewerLoading: project.scenes.length > 0, selectedHotspotId: null, hotspotMode: null });
   },
   updateProject: (project) => {
     project.scenes.forEach(s => {

@@ -5,7 +5,7 @@
 
 export type GpsTuple = [number, number, number?];
 
-export type AssetType = 'image' | 'audio' | 'video' | 'document';
+export type AssetType = 'image' | 'audio' | 'video' | 'document' | 'font';
 
 export interface AssetEntry {
   id: string;

@@ -10,7 +10,7 @@ import { GridCard } from '../ui/GridCard';
 import { Button } from '../ui/button';
 import { Modal, ConfirmModal } from '../ui/Modal';
 import { ContextMenu } from '../ui/ContextMenu';
-import { Upload, Image, Music, Video, FileText, Eye, Pencil, Trash2 } from 'lucide-react';
+import { Upload, Image, Music, Video, FileText, Eye, Pencil, Trash2, Type } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
@@ -18,19 +18,21 @@ import { stat } from '@tauri-apps/plugin-fs';
 import { appDataDir } from '@tauri-apps/api/path';
 import { getAssetUrl } from '@/lib/panorama';
 import { useToastStore } from '@/store/toastStore';
-import { MAX_UPLOAD_SIZE, MAX_UPLOAD_SIZE_MB, generateAssetId } from '@/constants';
+import { MAX_UPLOAD_SIZE, MAX_UPLOAD_SIZE_MB, MAX_ASSET_LIMITS, generateAssetId } from '@/constants';
 
 const typeConfig: Record<AssetType, { label: string; icon: React.ReactNode; accept: string }> = {
   image: { label: 'Images', icon: <Image className="w-5 h-5" />, accept: '.png,.jpg,.jpeg,.webp' },
   audio: { label: 'Audio', icon: <Music className="w-5 h-5" />, accept: '.mp3,.wav,.ogg,.m4a,.aac,.flac,.opus' },
   video: { label: 'Videos', icon: <Video className="w-5 h-5" />, accept: '.mp4,.webm,.mov,.avi,.mkv,.wmv,.flv,.mts' },
   document: { label: 'Documents', icon: <FileText className="w-5 h-5" />, accept: '.pdf,.txt,.md,.csv,.docx,.xlsx' },
+  font: { label: 'Fonts', icon: <Type className="w-5 h-5" />, accept: '.ttf,.woff,.woff2' },
 };
 
 function fileIcon(name: string): React.ReactNode {
   const ext = name.split('.').pop()?.toLowerCase();
   if (ext === 'pdf') return <FileText className="w-8 h-8 text-red-500" />;
   if (ext === 'txt' || ext === 'md') return <FileText className="w-8 h-8 text-blue-400" />;
+  if (ext === 'ttf' || ext === 'woff' || ext === 'woff2') return <Type className="w-8 h-8 text-indigo-400" />;
   return <FileText className="w-8 h-8 text-text-secondary" />;
 }
 
@@ -105,6 +107,17 @@ export const AssetsView = () => {
 
   const handleUpload = async (type: AssetType) => {
     const config = typeConfig[type];
+    const currentCount = assets.filter(a => a.type === type).length;
+    const limit = MAX_ASSET_LIMITS[type] || 5;
+
+    if (currentCount >= limit) {
+      setLimitErrorModal({
+        isOpen: true,
+        message: `You have reached the maximum limit of ${limit} ${config.label}. Please delete some before uploading new ones.`,
+      });
+      return;
+    }
+
     try {
       setUploading(true);
       const selected = await open({
@@ -116,6 +129,14 @@ export const AssetsView = () => {
       if (selected && selected.length > 0) {
         const paths = Array.isArray(selected) ? selected : [selected];
         
+        if (currentCount + paths.length > limit) {
+          setLimitErrorModal({
+            isOpen: true,
+            message: `You can only have up to ${limit} ${config.label}. You are trying to add ${paths.length} more, but you already have ${currentCount}.`,
+          });
+          return;
+        }
+
         const validPaths: { path: string, size: number, name: string }[] = [];
         const skippedFiles: string[] = [];
 
@@ -213,6 +234,7 @@ export const AssetsView = () => {
                   audio: 'mp3',
                   video: 'mp4',
                   document: '',
+                  font: '',
                 };
                 const baseName = name.includes('.') ? name.substring(0, name.lastIndexOf('.')) : name;
                 finalName = `${baseName}.${extMap[type]}`;
@@ -275,7 +297,7 @@ export const AssetsView = () => {
     setDeleteTarget(asset);
   }, []);
 
-  const grouped = (['image', 'audio', 'video', 'document'] as AssetType[]).map((type) => ({
+  const grouped = (['image', 'audio', 'video', 'document', 'font'] as AssetType[]).map((type) => ({
     type,
     ...typeConfig[type],
     items: assets.filter((a) => a.type === type),
@@ -291,9 +313,9 @@ export const AssetsView = () => {
         <div key={group.type} className="mb-8">
           <div className="flex items-center justify-between mb-4 border-b border-border pb-2">
             <h2 className="text-lg font-medium text-text-primary flex items-center gap-2">
-              {group.icon} {group.label}
+              {group.icon} {group.label} <span className="text-sm font-normal text-text-secondary ml-2">({group.items.length} / {MAX_ASSET_LIMITS[group.type] || 0})</span>
             </h2>
-            <Button variant="outline" size="sm" onClick={() => handleUpload(group.type)} disabled={uploading}>
+            <Button variant="outline" size="sm" onClick={() => handleUpload(group.type)} disabled={uploading || group.items.length >= (MAX_ASSET_LIMITS[group.type] || 0)}>
               <Upload className="w-4 h-4 mr-1" /> Upload
             </Button>
           </div>

@@ -11,9 +11,12 @@ import { ConfirmModal } from '@/components/ui/Modal';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/Select';
-import { Trash2, Save, MapPin, Info } from 'lucide-react';
+import { Trash2, MapPin, Info } from 'lucide-react';
 import { TourScene, NavigationHotspot, InfoHotspot } from '@/types/tour';
 import { HOTSPOT_ACTION_OPTIONS, TEXT_ALIGN_OPTIONS } from '@/constants';
+import { HOTSPOT_ICONS, LUCIDE_ICONS } from '@/icons';
+import { ColorPickerMenu } from '@/components/ui/ColorPickerMenu';
+import type { HotspotStyle } from './PSVViewer';
 
 type ActionType = 'navigate' | 'show_image' | 'show_video' | 'show_text' | 'play_sound' | 'show_document';
 
@@ -35,6 +38,7 @@ export const PropertyPanel = () => {
   const audioFiles = useMemo(() => (project?.assets ?? []).filter((a) => a.type === 'audio'), [project?.assets]);
   const videoFiles = useMemo(() => (project?.assets ?? []).filter((a) => a.type === 'video'), [project?.assets]);
   const documentFiles = useMemo(() => (project?.assets ?? []).filter((a) => a.type === 'document'), [project?.assets]);
+  const fontFiles = useMemo(() => (project?.assets ?? []).filter((a) => a.type === 'font'), [project?.assets]);
 
   const activeScene = project?.scenes.find((s) => s.id === activeSceneId);
   const selectedInfoMarker = activeScene?.markers.find(m => m.id === selectedHotspotId);
@@ -59,22 +63,25 @@ export const PropertyPanel = () => {
   }
 
   return (
-    <div className="h-full flex flex-col bg-card">
-      <div className="p-4 border-b border-border font-medium text-text-primary">Properties</div>
-      <ScrollArea className="flex-1 p-4">
-        {!selectedHotspotId && (
-          <ScenePropertiesForm
-            scene={activeScene}
-            onUpdate={updateScene}
-            onDelete={deleteScene}
-            onHotspotClick={(_markerId, internalId) => {
-              setSelectedHotspot(internalId);
-            }}
-          />
-        )}
+    <div className="h-full flex flex-col bg-card overflow-hidden">
+      <div className="p-4 border-b border-border font-medium text-text-primary">
+        {selectedHotspotId && (isNav || isInfo) ? 'Hotspot Properties' : 'Scene Properties'}
+      </div>
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="p-4 pb-20">
+          {!selectedHotspotId && (
+            <ScenePropertiesForm
+              scene={activeScene}
+              onUpdate={updateScene}
+              onDelete={deleteScene}
+              onHotspotClick={(_markerId, internalId) => {
+                setSelectedHotspot(internalId);
+              }}
+            />
+          )}
 
-        {selectedHotspotId && (isNav || isInfo) && (
-          <UnifiedHotspotForm
+          {selectedHotspotId && (isNav || isInfo) && (
+            <UnifiedHotspotForm
             sceneId={activeScene.id}
             hotspotId={selectedHotspotId}
             isNav={isNav}
@@ -86,6 +93,7 @@ export const PropertyPanel = () => {
             audioFiles={audioFiles}
             videoFiles={videoFiles}
             documentFiles={documentFiles}
+            fontFiles={fontFiles}
             updateInfoHotspot={updateInfoHotspot}
             deleteInfoHotspot={deleteInfoHotspot}
             updateNavHotspot={updateNavHotspot}
@@ -96,6 +104,7 @@ export const PropertyPanel = () => {
             scenes={project?.scenes || []}
           />
         )}
+        </div>
       </ScrollArea>
     </div>
   );
@@ -112,70 +121,33 @@ function ScenePropertiesForm({
   onDelete: (id: string) => void;
   onHotspotClick: (markerId: string, internalId: string) => void;
 }) {
-  const [localName, setLocalName] = useState(scene.name || '');
-  const [localCaption, setLocalCaption] = useState(scene.caption || '');
-  const originalRef = useRef({ name: scene.name || '', caption: scene.caption || '' });
-  const [hasChanges, setHasChanges] = useState(false);
-
-  const checkChanges = useCallback((name: string, caption: string) => {
-    const orig = originalRef.current;
-    return name !== orig.name || caption !== orig.caption;
-  }, []);
-
-  useEffect(() => {
-    setLocalName(scene.name || '');
-    setLocalCaption(scene.caption || '');
-    originalRef.current = { name: scene.name || '', caption: scene.caption || '' };
-    setHasChanges(false);
-  }, [scene.id, scene.name, scene.caption]);
-
-  const handleNameChange = (v: string) => {
-    setLocalName(v);
-    setHasChanges(checkChanges(v, localCaption));
-  };
-
-  const handleCaptionChange = (v: string) => {
-    setLocalCaption(v);
-    setHasChanges(checkChanges(localName, v));
-  };
-
-  const handleSave = () => {
-    onUpdate(scene.id, { name: localName, caption: localCaption });
-    originalRef.current = { name: localName, caption: localCaption };
-    setHasChanges(false);
-  };
-
   const handleDelete = () => {
     onDelete(scene.id);
   };
 
   return (
     <div className="flex flex-col h-full">
-      <h3 className="text-sm font-semibold border-b border-border pb-2 text-text-primary">Scene Properties</h3>
       <div className="flex flex-col flex-1">
         <div className="space-y-4 flex-1">
           <div className="space-y-1">
             <Label>Name</Label>
             <Input
-              value={localName}
-              onChange={(e) => handleNameChange(e.target.value)}
+              value={scene.name || ''}
+              onChange={(e) => onUpdate(scene.id, { name: e.target.value })}
             />
           </div>
           <div className="space-y-1">
             <Label>Caption</Label>
             <Input
-              value={localCaption}
-              onChange={(e) => handleCaptionChange(e.target.value)}
+              value={scene.caption || ''}
+              onChange={(e) => onUpdate(scene.id, { caption: e.target.value })}
             />
           </div>
         </div>
 
         <div className="pt-4 border-t border-border mt-4 flex gap-2">
-          <Button variant="danger" size="sm" className="flex-1" onClick={handleDelete}>
-            <Trash2 className="w-4 h-4 mr-2" /> Delete
-          </Button>
-          <Button size="sm" className="flex-1" onClick={handleSave} disabled={!hasChanges}>
-            <Save className="w-4 h-4 mr-2" /> Save
+          <Button variant="danger" size="sm" className="w-full" onClick={handleDelete}>
+            <Trash2 className="w-4 h-4 mr-2" /> Delete Scene
           </Button>
         </div>
       </div>
@@ -218,6 +190,7 @@ function UnifiedHotspotForm({
   audioFiles,
   videoFiles,
   documentFiles,
+  fontFiles,
   updateInfoHotspot,
   deleteInfoHotspot,
   updateNavHotspot,
@@ -238,6 +211,7 @@ function UnifiedHotspotForm({
   audioFiles: { path: string; name: string }[];
   videoFiles: { path: string; name: string }[];
   documentFiles: { path: string; name: string }[];
+  fontFiles: { id: string; name: string }[];
   updateInfoHotspot: (sceneId: string, hotspotId: string, updates: Partial<InfoHotspot>) => void;
   deleteInfoHotspot: (sceneId: string, hotspotId: string) => void;
   updateNavHotspot: (sceneId: string, hotspotId: string, updates: Partial<NavigationHotspot>) => void;
@@ -260,6 +234,7 @@ function UnifiedHotspotForm({
   const origAudio = (currentData.audio as string) || '';
   const origDocument = (currentData.document as string) || '';
   const origNavTarget = isNav ? (navMarker?.nodeId || '') : ((currentData.navTarget as string) || '');
+  const origStyle = (currentData.style as HotspotStyle) || {};
 
   const [localTooltip, setLocalTooltip] = useState(origTooltip);
   const [localAction, setLocalAction] = useState(origAction);
@@ -271,27 +246,19 @@ function UnifiedHotspotForm({
   const [localAudio, setLocalAudio] = useState(origAudio);
   const [localDocument, setLocalDocument] = useState(origDocument);
   const [localNavTarget, setLocalNavTarget] = useState(origNavTarget);
-  const [hasChanges, setHasChanges] = useState(false);
+  const [localStyle, setLocalStyle] = useState(origStyle);
 
-  const origRef = useRef({ tooltip: origTooltip, action: origAction, image: origImage, content: origContent, video: origVideo, textAlign: origTextAlign, autoPlay: origAutoPlay, audio: origAudio, document: origDocument, navTarget: origNavTarget });
+  const isInitialMount = useRef(true);
   
   useEffect(() => {
+    isInitialMount.current = true;
     setLocalTooltip(origTooltip); setLocalAction(origAction); setLocalImage(origImage); setLocalContent(origContent);
     setLocalVideo(origVideo); setLocalTextAlign(origTextAlign); setLocalAutoPlay(origAutoPlay); setLocalAudio(origAudio); setLocalDocument(origDocument); setLocalNavTarget(origNavTarget);
-    origRef.current = { tooltip: origTooltip, action: origAction, image: origImage, content: origContent, video: origVideo, textAlign: origTextAlign, autoPlay: origAutoPlay, audio: origAudio, document: origDocument, navTarget: origNavTarget };
-    setHasChanges(false);
-  }, [hotspotId, origTooltip, origAction, origImage, origContent, origVideo, origTextAlign, origAutoPlay, origAudio, origDocument, origNavTarget]);
+    setLocalStyle(origStyle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hotspotId]);
 
-  const checkChanged = useCallback(() => {
-    const o = origRef.current;
-    return localTooltip !== o.tooltip || localAction !== o.action || localImage !== o.image
-      || localContent !== o.content || localVideo !== o.video || localTextAlign !== o.textAlign
-      || localAutoPlay !== o.autoPlay || localAudio !== o.audio || localDocument !== o.document || localNavTarget !== o.navTarget;
-  }, [localTooltip, localAction, localImage, localContent, localVideo, localTextAlign, localAutoPlay, localAudio, localDocument, localNavTarget]);
-
-  useEffect(() => { setHasChanges(checkChanged()); }, [checkChanged]);
-
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     const position = isNav ? navMarker?.position : infoMarker?.position;
     
     if (localAction === 'navigate') {
@@ -303,12 +270,19 @@ function UnifiedHotspotForm({
         position,
       };
       
+      // Merge localStyle if not empty
+      if (Object.keys(localStyle).length > 0) {
+        newNavHotspot.markerStyle = localStyle as unknown as Record<string, unknown>;
+      }
+      
       if (!isNav) {
+        // Also ensure data.style is stored for unified reading
+        const infoToNav = { ...newNavHotspot, data: { style: localStyle } } as unknown as NavigationHotspot;
         deleteInfoHotspot(sceneId, hotspotId);
-        addNavHotspot(sceneId, newNavHotspot);
-        setSelectedHotspot(newNavHotspot.id!);
+        addNavHotspot(sceneId, infoToNav);
+        setSelectedHotspot(infoToNav.id!);
       } else {
-        updateNavHotspot(sceneId, hotspotId, { name: localTooltip, nodeId: localNavTarget });
+        updateNavHotspot(sceneId, hotspotId, { name: localTooltip, nodeId: localNavTarget, data: { style: localStyle } } as unknown as Partial<NavigationHotspot>);
       }
     } else {
       const dataUpdates: Record<string, unknown> = { action: localAction };
@@ -316,6 +290,10 @@ function UnifiedHotspotForm({
       if (localAction === 'play_sound') { dataUpdates.audio = localAudio; dataUpdates.autoPlay = localAutoPlay; }
       if (localAction === 'show_video') dataUpdates.video = localVideo;
       if (localAction === 'show_document') dataUpdates.document = localDocument;
+      
+      if (Object.keys(localStyle).length > 0) {
+        dataUpdates.style = localStyle;
+      }
       
       const newInfoHotspot: InfoHotspot = {
         id: !isNav ? hotspotId : `hotspot_${Math.random().toString(36).substring(2, 9)}`,
@@ -334,10 +312,21 @@ function UnifiedHotspotForm({
         updateInfoHotspot(sceneId, hotspotId, newInfoHotspot);
       }
     }
+  }, [isNav, navMarker, infoMarker, localAction, localNavTarget, localTooltip, localStyle, hotspotId, sceneId, deleteInfoHotspot, addNavHotspot, setSelectedHotspot, updateNavHotspot, localTextAlign, localAudio, localAutoPlay, localVideo, localDocument, localContent, localImage, deleteNavHotspot, addInfoHotspot, updateInfoHotspot]);
+
+  const handleSaveRef = useRef(handleSave);
+  useEffect(() => {
+    handleSaveRef.current = handleSave;
+  }, [handleSave]);
+
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     
-    origRef.current = { tooltip: localTooltip, action: localAction, image: localImage, content: localContent, video: localVideo, textAlign: localTextAlign, autoPlay: localAutoPlay, audio: localAudio, document: localDocument, navTarget: localNavTarget };
-    setHasChanges(false);
-  };
+    handleSaveRef.current();
+  }, [localAction, localImage, localContent, localVideo, localTextAlign, localAutoPlay, localAudio, localDocument, localNavTarget, localStyle, localTooltip]);
 
   const handleDelete = () => {
     if (isNav) deleteNavHotspot(sceneId, hotspotId);
@@ -347,10 +336,9 @@ function UnifiedHotspotForm({
 
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-semibold border-b border-border pb-2 text-text-primary">Hotspot Properties</h3>
       <div className="space-y-4">
         <div className="space-y-1">
-          <Label>Name / Tooltip</Label>
+          <Label>Name</Label>
           <Input value={localTooltip} onChange={(e) => setLocalTooltip(e.target.value)} />
         </div>
 
@@ -475,12 +463,124 @@ function UnifiedHotspotForm({
           </div>
         )}
 
+        <div className="space-y-6 pt-4 border-t border-border">
+          <h4 className="text-sm font-semibold text-text-primary">Appearance</h4>
+          
+          <div className="space-y-4 bg-surface/50 p-3 rounded-lg border border-border">
+            <h5 className="text-xs font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-2">
+              <Info className="w-3.5 h-3.5" /> Icon Settings
+            </h5>
+            
+            <div className="space-y-1">
+              <Label>Icon</Label>
+              <Select
+                value={localStyle.icon || 'info'}
+                onChange={(v) => setLocalStyle(prev => ({ ...prev, icon: v }))}
+                options={[{ value: 'info', label: 'Default' }, ...HOTSPOT_ICONS.map(i => ({
+                  value: i.value,
+                  label: (
+                    <div className="flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: LUCIDE_ICONS[i.value] }} />
+                      <span>{i.label}</span>
+                    </div>
+                  )
+                }))]}
+              />
+            </div>
+
+            <ColorPickerMenu
+              label="Icon Color"
+              bgType="solid"
+              bgColor={localStyle.iconColor || '#ffffff'}
+              onChange={(_type, c) => setLocalStyle(prev => ({ ...prev, iconColor: c }))}
+              disableGradient
+            />
+
+          </div>
+
+          <div className="space-y-4 bg-surface/50 p-3 rounded-lg border border-border">
+            <h5 className="text-xs font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-2">
+              <span className="text-sm">A</span> Text Settings
+            </h5>
+            
+            <div className="space-y-1">
+              <Label>Custom Font</Label>
+              {fontFiles.length === 0 ? (
+                <p className="text-xs text-text-secondary">No custom fonts in Assets. Upload a .ttf file first.</p>
+              ) : (
+                <Select
+                  value={localStyle.fontFamilyAssetId || ''}
+                  onChange={(v) => setLocalStyle(prev => ({ ...prev, fontFamilyAssetId: v }))}
+                  placeholder="Select a font..."
+                  options={[{ value: '', label: 'Default System Font' }, ...fontFiles.map(f => ({ value: f.id, label: f.name }))]}
+                />
+              )}
+            </div>
+
+            <ColorPickerMenu
+              label="Text Color"
+              bgType="solid"
+              bgColor={localStyle.textColor || '#ffffff'}
+              onChange={(_type, c) => setLocalStyle(prev => ({ ...prev, textColor: c }))}
+              disableGradient
+            />
+          </div>
+
+          <div className="space-y-4 bg-surface/50 p-3 rounded-lg border border-border">
+            <h5 className="text-xs font-semibold text-text-secondary uppercase tracking-wider flex items-center gap-2">
+              <div className="w-3.5 h-3.5 rounded-sm border border-text-secondary"></div> Background Box
+            </h5>
+
+            <ColorPickerMenu
+              label="Background Color"
+              bgType={localStyle.bgType || 'solid'}
+              bgColor={localStyle.bgColor || '#000000'}
+              bgGradient={localStyle.bgGradient || 'linear-gradient(90deg, rgba(255,0,0,1) 0%, rgba(0,0,255,1) 100%)'}
+              onChange={(type, c, g) => setLocalStyle(prev => ({ ...prev, bgType: type, bgColor: c, bgGradient: g }))}
+            />
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Box Opacity</Label>
+                <div className="relative">
+                  <Input 
+                    type="number"
+                    min="10"
+                    max="100"
+                    value={localStyle.opacity !== undefined ? Math.round(localStyle.opacity * 100) : 60} 
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value);
+                      if (!isNaN(v)) {
+                        setLocalStyle(prev => ({ ...prev, opacity: Math.max(10, Math.min(100, v)) / 100 }));
+                      }
+                    }}
+                    className="pr-6"
+                  />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-text-secondary text-xs pointer-events-none">%</span>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label>Border Radius</Label>
+                <div className="relative">
+                  <Input 
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={localStyle.radius ? parseInt(localStyle.radius) : 50} 
+                    onChange={(e) => setLocalStyle(prev => ({ ...prev, radius: e.target.value + '%' }))}
+                    className="pr-6"
+                  />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-text-secondary text-xs pointer-events-none">%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="pt-4 border-t border-border flex gap-2">
-          <Button variant="danger" size="sm" className="flex-1" onClick={() => setDeleteTarget(hotspotId)}>
-            <Trash2 className="w-4 h-4 mr-2" /> Delete
-          </Button>
-          <Button size="sm" className="flex-1" onClick={handleSave} disabled={!hasChanges}>
-            <Save className="w-4 h-4 mr-2" /> Save
+          <Button variant="danger" size="sm" className="w-full" onClick={() => setDeleteTarget(hotspotId)}>
+            <Trash2 className="w-4 h-4 mr-2" /> Delete Hotspot
           </Button>
         </div>
       </div>

@@ -29,13 +29,13 @@ export const SkeletonEditor = () => {
         <div className="flex h-full w-full bg-background overflow-hidden">
           <div className="flex flex-col flex-1 overflow-hidden">
             {/* Center: Preview Area */}
-            <div className="flex-1 relative bg-black overflow-hidden min-h-0 flex items-center justify-center">
+            <div className="flex-1 relative bg-background overflow-hidden min-h-0 flex items-center justify-center">
               <div className="flex flex-col items-center gap-3">
-                <svg className="w-8 h-8 text-white/20 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <svg className="w-8 h-8 text-primary animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                <p className="text-sm text-white/20">Loading project...</p>
+                <p className="text-sm font-medium text-text-primary">Loading project...</p>
               </div>
             </div>
 

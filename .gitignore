@@ -4,6 +4,7 @@ src-tauri/target/
 src-tauri/gen/
 .env
 .env.local
+.env.production
 .env.*.local
 *.log
 *.tsbuildinfo
@@ -17,4 +18,3 @@ Thumbs.db
 *~
 /plannings/
 /src/deploy/
-*.local

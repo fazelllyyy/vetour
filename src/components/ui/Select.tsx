@@ -3,12 +3,12 @@
  *  Licensed under the MIT License. See LICENSE file in the project root for license information.
  *-----------------------------------------------------------------------------------------------*/
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 
 interface SelectOption {
   value: string;
-  label: string;
+  label: ReactNode;
 }
 
 interface SelectProps {
@@ -48,7 +48,7 @@ export function Select({ value, onChange, options, placeholder }: SelectProps) {
         onClick={() => setOpen(!open)}
         className="flex items-center justify-between w-full px-3 py-2 border border-border rounded-lg bg-surface text-text-primary text-sm transition-colors hover:border-primary focus:border-primary focus:ring-1 focus:ring-primary outline-none"
       >
-        <span className={selected ? '' : 'text-text-secondary'}>{display}</span>
+        <span className={selected ? 'flex items-center' : 'text-text-secondary'}>{display}</span>
         <ChevronDown className={`w-4 h-4 text-text-secondary transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
 
@@ -62,7 +62,7 @@ export function Select({ value, onChange, options, placeholder }: SelectProps) {
                 key={opt.value}
                 type="button"
                 onClick={() => { onChange(opt.value); setOpen(false); }}
-                className={`w-full text-left px-3 py-2 text-sm transition-colors hover:bg-primary-subtle ${
+                className={`w-full text-left px-3 py-2 text-sm transition-colors hover:bg-primary-subtle flex items-center ${
                   opt.value === value ? 'text-primary font-medium bg-primary-subtle' : 'text-text-primary'
                 }`}
               >

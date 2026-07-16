@@ -113,6 +113,9 @@ function App() {
   }, []);
 
   const performSaveAndContinue = async () => {
+    // Wait for any pending debounced updates (e.g. from PropertyPanel) to flush
+    await new Promise(resolve => setTimeout(resolve, 350));
+    
     const state = useTourStore.getState();
     const project = state.project;
     if (!project) return true;

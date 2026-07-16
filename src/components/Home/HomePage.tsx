@@ -20,7 +20,8 @@ import { SettingsModal } from '../Settings/SettingsModal';
 import { Tooltip } from '../ui/Tooltip';
 import { ScrollArea } from '../ui/scroll-area';
 import { lockProjectFile } from '@/lib/fileLock';
-import { DEFAULT_PROJECT_NAME, generateProjectId, MAX_RECENT_PROJECTS_HOME, MAX_RECENT_PROJECTS_MODAL, FILE_FILTER_NAME, FILE_FILTER_EXTENSIONS } from '@/constants';
+import { DEFAULT_PROJECT_NAME, generateProjectId, MAX_RECENT_PROJECTS_HOME, MAX_RECENT_PROJECTS_MODAL, FILE_FILTER_NAME, FILE_FILTER_EXTENSIONS, FAZELSTUDIO_URL } from '@/constants';
+import fazelStudioIcon from '@/assets/fazelstudio.png';
 
 
 function formatDate(iso: string) {
@@ -280,9 +281,18 @@ export const HomePage = ({ onNavigateToEditor, onReady }: HomePageProps) => {
 
           <motion.div
             variants={itemVariants}
-            className="absolute bottom-8 text-[10px] tracking-[0.3em] uppercase text-text-secondary opacity-50"
+            className="absolute bottom-8 text-[10px] tracking-[0.3em] text-text-secondary opacity-50 flex items-center gap-2"
           >
-            fazel studio
+            Powered by 
+            <a 
+              href={FAZELSTUDIO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-inherit hover:text-text-primary transition-colors"
+            >
+              <img src={fazelStudioIcon} alt="Fazel Studio Icon" className="h-4 w-auto object-contain opacity-80" />
+              FAZEL STUDIO
+            </a>
           </motion.div>
 
           <motion.div variants={itemVariants} className="absolute bottom-8 left-8">

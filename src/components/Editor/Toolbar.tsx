@@ -75,10 +75,11 @@ export const Toolbar = ({ onOpenDeploy, onNavigateHome }: ToolbarProps) => {
   };
 
   const doSave = async (targetPath: string) => {
-    if (!project) return;
-    const fileName = targetPath.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, '') || project.name;
-    const name = project.name === DEFAULT_PROJECT_NAME ? fileName : project.name;
-    const updatedProject = { ...project, name, updatedAt: new Date().toISOString() };
+    const currentProject = useTourStore.getState().project;
+    if (!currentProject) return;
+    const fileName = targetPath.split(/[/\\]/).pop()?.replace(/\.[^.]+$/, '') || currentProject.name;
+    const name = currentProject.name === DEFAULT_PROJECT_NAME ? fileName : currentProject.name;
+    const updatedProject = { ...currentProject, name, updatedAt: new Date().toISOString() };
     markSave();
     await unlockProjectFile();
     await saveVetourFile(targetPath, updatedProject);
@@ -97,14 +98,18 @@ export const Toolbar = ({ onOpenDeploy, onNavigateHome }: ToolbarProps) => {
   };
 
   const handleSave = async () => {
-    if (!project) return;
+    // Wait for any pending debounced updates (e.g. from PropertyPanel) to flush
+    await new Promise(resolve => setTimeout(resolve, 350));
+    
+    const currentProject = useTourStore.getState().project;
+    if (!currentProject) return;
     try {
       if (savedPath) {
         await doSave(savedPath);
       } else {
         const selected = await save({
           filters: [{ name: FILE_FILTER_NAME, extensions: [...FILE_FILTER_EXTENSIONS] }],
-          defaultPath: `${project.name}.vetour`
+          defaultPath: `${currentProject.name}.vetour`
         });
         if (selected) {
           await doSave(selected);
